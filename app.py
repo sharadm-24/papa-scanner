@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 import json
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Request
+from fastapi import FastAPI, UploadFile, File, Request
 import logging
 
 # Suppress yfinance logs

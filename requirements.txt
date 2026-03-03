@@ -1,0 +1,8 @@
+fastapi
+pandas
+yfinance
+python-dateutil
+uvicorn
+gunicorn
+jinja2
+python-multipart

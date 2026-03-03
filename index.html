@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Backtest Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top left, #1a1a2e, #16213e, #0f3460);
+            min-height: 100vh;
+            color: #e9ecef;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+        }
+
+        .drop-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone.active {
+            border-color: #4cc9f0;
+            background: rgba(76, 201, 240, 0.05);
+            transform: scale(1.02);
+        }
+
+        .progress-bar-fill {
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(90deg, #4cc9f0, #4361ee);
+        }
+
+        .pos {
+            color: #00f5d4;
+        }
+
+        .neg {
+            color: #ff5d8f;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        .table-container {
+            max-height: 65vh;
+            overflow-y: auto;
+            border-radius: 0 0 15px 15px;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: #111d35;
+            z-index: 20;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 4px solid #4cc9f0;
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            border-left-width: 8px;
+        }
+
+        input {
+            transition: all 0.2s;
+        }
+
+        input:focus {
+            border-color: #4cc9f0 !important;
+            box-shadow: 0 0 15px rgba(76, 201, 240, 0.2);
+        }
+
+        .active-filter-border {
+            border-color: #4cc9f0 !important;
+            background: rgba(76, 201, 240, 0.05) !important;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1
+                class="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">
+                Stock Backtest Scanner
+            </h1>
+            <p class="text-gray-400 text-lg font-light tracking-wide">Professional Grade Performance Analytics</p>
+        </header>
+
+        <!-- Upload Section -->
+        <div id="upload-card" class="glass p-8 mb-8 text-center">
+            <div id="drop-zone" class="drop-zone p-12 rounded-xl cursor-pointer">
+                <div class="mb-4">
+                    <svg class="mx-auto h-16 w-16 text-cyan-400 opacity-80" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+                        </path>
+                    </svg>
+                </div>
+                <p class="text-xl font-medium mb-1">Upload Results CSV</p>
+                <p class="text-sm text-gray-500">Drag & drop or click to analyze</p>
+                <input type="file" id="file-input" class="hidden" accept=".csv">
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div id="progress-card" class="glass p-8 mb-8 hidden">
+            <div class="flex justify-between items-end mb-4">
+                <div>
+                    <h3 class="text-xl font-semibold mb-1 text-cyan-400">Backtesting Data...</h3>
+                    <p id="current-task" class="text-gray-400 text-sm italic">Analyzing candles</p>
+                </div>
+                <p id="progress-text" class="text-2xl font-bold font-mono">0%</p>
+            </div>
+            <div class="w-full bg-white/5 rounded-full h-4 mb-2 overflow-hidden border border-white/5">
+                <div id="progress-bar" class="progress-bar-fill h-full w-0 shadow-[0_0_20px_rgba(76,201,240,0.5)]">
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard UI -->
+        <div id="dashboard-section" class="hidden animate-in fade-in duration-700">
+
+            <!-- Statistics Panel -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="glass p-5 stat-card">
+                    <p class="text-gray-500 text-xs uppercase tracking-widest mb-1 font-bold">Processed</p>
+                    <p id="stat-total" class="text-3xl font-bold text-white">0</p>
+                </div>
+                <div class="glass p-5 stat-card border-l-cyan-400">
+                    <p class="text-gray-500 text-xs uppercase tracking-widest mb-1 font-bold">Filtered Count</p>
+                    <p id="stat-filtered" class="text-3xl font-bold text-cyan-400">0</p>
+                </div>
+                <div class="glass p-5 stat-card border-l-emerald-400">
+                    <p class="text-gray-500 text-xs uppercase tracking-widest mb-1 font-bold">Profitable</p>
+                    <p id="stat-high-hit" class="text-3xl font-bold text-emerald-400">0</p>
+                </div>
+                <div class="glass p-5 stat-card border-l-amber-500">
+                    <p class="text-gray-500 text-xs uppercase tracking-widest mb-1 font-bold">Avg Move</p>
+                    <p id="stat-avg-profit" class="text-3xl font-bold text-amber-500">0%</p>
+                </div>
+            </div>
+
+            <!-- Filters Toolbar (INDEPENDENT FILTERS) -->
+            <div class="glass p-6 mb-8 border border-white/10 relative">
+                <div
+                    class="absolute -top-3 left-6 px-3 py-1 bg-[#1a1a2e] border border-white/10 rounded-full text-[10px] uppercase font-black text-cyan-400 tracking-widest shadow-xl">
+                    Independent Filters (One active at a time)
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div>
+                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">1.
+                            Search Symbol</label>
+                        <input type="text" id="filter-symbol" placeholder="e.g. RELIANCE"
+                            class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none text-white placeholder-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">2. %
+                            High Gain (>=)</label>
+                        <input type="number" id="filter-min-high" placeholder="e.g. 5.0" step="0.5"
+                            class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none text-white placeholder-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">3. %
+                            Low Drawdown (>=)</label>
+                        <input type="number" id="filter-min-low" placeholder="e.g. -2.0" step="0.5"
+                            class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none text-white placeholder-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">4. %
+                            Net Close (>=)</label>
+                        <input type="number" id="filter-min-close" placeholder="e.g. 0.0" step="0.5"
+                            class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none text-white placeholder-gray-600">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div id="results-card" class="glass overflow-hidden shadow-2xl border border-white/5">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-1 h-6 bg-cyan-400 rounded-full"></div>
+                        <h2 class="text-xl font-bold text-white tracking-tight">Technical Data Table</h2>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span id="result-count-badge"
+                            class="px-3 py-1 bg-white/10 rounded-full text-[10px] font-bold text-cyan-400">0
+                            RESULTS</span>
+                        <button onclick="location.reload()"
+                            class="text-xs text-gray-500 hover:text-white transition uppercase font-black tracking-widest text-[10px]">Refresh</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr
+                                class="text-gray-500 text-[10px] font-black uppercase tracking-widest border-b border-white/10">
+                                <th class="py-5 px-6">Symbol</th>
+                                <th class="py-5 px-6">Entry</th>
+                                <th class="py-5 px-6">Target Month</th>
+                                <th class="py-5 px-6 opacity-30">Open</th>
+                                <th class="py-5 px-6 opacity-30">High</th>
+                                <th class="py-5 px-6 opacity-30">Low</th>
+                                <th class="py-5 px-6 opacity-30">Close</th>
+                                <th class="py-5 px-6 text-right text-emerald-400 bg-emerald-400/5">High %</th>
+                                <th class="py-5 px-6 text-right text-rose-500 bg-rose-500/5">Low %</th>
+                                <th class="py-5 px-6 text-right text-white bg-white/5">Close %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-body" class="text-sm">
+                            <!-- Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const uploadCard = document.getElementById('upload-card');
+        const progressCard = document.getElementById('progress-card');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const resultsBody = document.getElementById('results-body');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const currentTask = document.getElementById('current-task');
+        const resultCountBadge = document.getElementById('result-count-badge');
+
+        const statTotal = document.getElementById('stat-total');
+        const statFiltered = document.getElementById('stat-filtered');
+        const statHighHit = document.getElementById('stat-high-hit');
+        const statAvgProfit = document.getElementById('stat-avg-profit');
+
+        const filterSymbol = document.getElementById('filter-symbol');
+        const filterMinHigh = document.getElementById('filter-min-high');
+        const filterMinLow = document.getElementById('filter-min-low');
+        const filterMinClose = document.getElementById('filter-min-close');
+
+        let allResults = [];
+        let activeFilterId = null;
+
+        dropZone.onclick = () => fileInput.click();
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('active'); };
+        dropZone.ondragleave = () => { dropZone.classList.remove('active'); };
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('active');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        };
+
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        };
+
+        async function handleFile(file) {
+            uploadCard.classList.add('hidden');
+            progressCard.classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/scan', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = JSON.parse(line.substring(6));
+
+                            if (data.type === 'progress') {
+                                const percent = Math.round((data.current / data.total) * 100);
+                                progressBar.style.width = percent + '%';
+                                progressText.innerText = percent + '%';
+                                currentTask.innerText = `Fetching ${data.symbol}... ${data.current}/${data.total}`;
+                            }
+
+                            if (data.type === 'complete') {
+                                setTimeout(() => {
+                                    allResults = data.results;
+                                    progressCard.classList.add('hidden');
+                                    dashboardSection.classList.remove('hidden');
+                                    filterAndRender();
+                                }, 500);
+                            }
+
+                            if (data.type === 'error') {
+                                alert('Error: ' + data.message);
+                                location.reload();
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                alert('Connection error: ' + error.message);
+                location.reload();
+            }
+        }
+
+        // Independent Filter Logic: Typing in one clears the others
+        [filterSymbol, filterMinHigh, filterMinLow, filterMinClose].forEach(el => {
+            el.addEventListener('input', (e) => {
+                const val = e.target.value;
+                if (val !== "") {
+                    // This is now the active filter. Clear others.
+                    [filterSymbol, filterMinHigh, filterMinLow, filterMinClose].forEach(other => {
+                        if (other !== el) {
+                            other.value = "";
+                            other.classList.remove('active-filter-border');
+                        }
+                    });
+                    el.classList.add('active-filter-border');
+                } else {
+                    el.classList.remove('active-filter-border');
+                }
+                filterAndRender();
+            });
+        });
+
+        function filterAndRender() {
+            const sym = filterSymbol.value.toUpperCase();
+            const minH = filterMinHigh.value !== "" ? parseFloat(filterMinHigh.value) : -9999;
+            const minL = filterMinLow.value !== "" ? parseFloat(filterMinLow.value) : -9999;
+            const minC = filterMinClose.value !== "" ? parseFloat(filterMinClose.value) : -9999;
+
+            const filtered = allResults.filter(row => {
+                if (sym !== "") return row.symbol.toUpperCase().includes(sym);
+                if (filterMinHigh.value !== "") return row.p_high >= minH;
+                if (filterMinLow.value !== "") return row.p_low <= minL;
+                if (filterMinClose.value !== "") return row.p_close >= minC;
+                return true; // No filter active
+            });
+
+            // Update Stats
+            const profitableCount = filtered.filter(r => r.p_close > 0).length;
+            const avgReturn = filtered.length
+                ? (filtered.reduce((a, b) => a + b.p_close, 0) / filtered.length).toFixed(2)
+                : 0;
+
+            statTotal.innerText = allResults.length;
+            statFiltered.innerText = filtered.length;
+            statHighHit.innerText = profitableCount;
+            statAvgProfit.innerText = avgReturn + '%';
+            resultCountBadge.innerText = `${filtered.length} SIGNALS FOUND`;
+
+            resultsBody.innerHTML = filtered.map(row => `
+                <tr class="border-b border-white/5 hover:bg-white/10 transition group">
+                    <td class="py-5 px-6 font-bold text-cyan-400 group-hover:text-white transition">
+                        ${row.symbol}
+                    </td>
+                    <td class="py-5 px-6 text-gray-500 font-mono text-[11px]">${row.entry_date}</td>
+                    <td class="py-5 px-6 font-bold text-gray-400 uppercase text-[10px] tracking-widest italic">${row.target_month}</td>
+                    <td class="py-5 px-6 text-gray-600 font-mono text-xs">${row.open}</td>
+                    <td class="py-5 px-6 text-gray-600 font-mono text-xs">${row.high}</td>
+                    <td class="py-5 px-6 text-gray-600 font-mono text-xs">${row.low}</td>
+                    <td class="py-5 px-6 text-gray-600 font-mono text-xs">${row.close}</td>
+                    <td class="py-5 px-6 text-right font-black pos bg-emerald-400/5 tracking-tighter text-base">+${row.p_high}%</td>
+                    <td class="py-5 px-6 text-right font-black neg bg-rose-500/5 tracking-tighter text-base">${row.p_low}%</td>
+                    <td class="py-5 px-6 text-right font-black ${row.p_close >= 0 ? 'pos' : 'neg'} bg-white/5 text-base shadow-inner">
+                        ${row.p_close >= 0 ? '+' : ''}${row.p_close}%
+                    </td>
+                </tr>
+            `).join('');
+
+            if (filtered.length === 0) {
+                resultsBody.innerHTML = `<tr><td colspan="10" class="py-40 text-center text-gray-600 uppercase font-black tracking-[1em] text-xs">No Data Matched</td></tr>`;
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+
+# CSV files (optional, but good practice to ignore large data files)
+# *.csv
+
+# macOS
+.DS_Store

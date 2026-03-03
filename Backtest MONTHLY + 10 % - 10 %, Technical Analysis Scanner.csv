@@ -1,0 +1,357 @@
+date,symbol,marketcapname,sector
+03-12-2012,ASTRAL,Largecap,Plastic products
+01-01-2013,SOLARINDS,Largecap,Aerospace & Defence
+01-02-2013,ASTRAL,Largecap,Plastic products
+01-04-2013,SUNPHARMA,Largecap,Healthcare
+01-04-2013,GODREJCP,Largecap,FMCG
+02-05-2013,APOLLOHOSP,Largecap,Healthcare
+02-05-2013,PAGEIND,Largecap,Consumer Discretionary
+02-05-2013,ASTRAL,Largecap,Plastic products
+01-07-2013,LUPIN,Largecap,Healthcare
+01-07-2013,PAGEIND,Largecap,Consumer Discretionary
+02-09-2013,HCLTECH,Largecap,I.T
+01-10-2013,PIIND,Largecap,Chemicals
+01-10-2013,ASTRAL,Largecap,Plastic products
+01-10-2013,PERSISTENT,Largecap,I.T
+02-12-2013,HCLTECH,Largecap,I.T
+02-12-2013,TECHM,Largecap,I.T
+01-01-2014,AUROPHARMA,Largecap,Healthcare
+01-01-2014,PAGEIND,Largecap,Consumer Discretionary
+03-02-2014,DRREDDY,Largecap,Healthcare
+03-02-2014,TATAELXSI,Largecap,I.T
+03-03-2014,SUPREMEIND,Largecap,Plastic products
+02-05-2014,EICHERMOT,Largecap,Auto
+02-05-2014,MOTHERSON,Largecap,Auto
+02-05-2014,TVSMOTOR,Largecap,Auto
+02-06-2014,TORNTPHARM,Largecap,Healthcare
+02-06-2014,BHARATFORG,Largecap,Industrials
+02-06-2014,SRF,Largecap,Chemicals
+02-06-2014,HAVELLS,Largecap,Consumer Discretionary
+02-06-2014,PIIND,Largecap,Chemicals
+02-06-2014,SOLARINDS,Largecap,Aerospace & Defence
+02-06-2014,DALBHARAT,Largecap,Building Materials
+02-06-2014,NBCC,Largecap,Miscellaneous
+01-07-2014,SUPREMEIND,Largecap,Plastic products
+01-07-2014,PAGEIND,Largecap,Consumer Discretionary
+01-08-2014,DABUR,Largecap,FMCG
+01-08-2014,TVSMOTOR,Largecap,Auto
+01-08-2014,TECHM,Largecap,I.T
+01-08-2014,PERSISTENT,Largecap,I.T
+01-09-2014,BAJFINANCE,Largecap,Financials
+01-09-2014,SHREECEM,Largecap,Building Materials
+01-09-2014,BAJAJHLDNG,Largecap,Financials
+01-09-2014,BRITANNIA,Largecap,FMCG
+01-09-2014,SUPREMEIND,Largecap,Plastic products
+01-09-2014,HCLTECH,Largecap,I.T
+01-09-2014,NBCC,Largecap,Miscellaneous
+03-11-2014,BAJAJHLDNG,Largecap,Financials
+03-11-2014,BOSCHLTD,Largecap,Auto
+03-11-2014,HAVELLS,Largecap,Consumer Discretionary
+03-11-2014,KEI,Largecap,Industrials
+03-11-2014,MARICO,Largecap,FMCG
+03-11-2014,NAUKRI,Largecap,I.T
+01-12-2014,PIDILITIND,Largecap,Chemicals
+01-12-2014,ZYDUSLIFE,Largecap,Healthcare
+01-12-2014,PAGEIND,Largecap,Consumer Discretionary
+01-12-2014,ADANIPORTS,Largecap,Transportation
+01-12-2014,PERSISTENT,Largecap,I.T
+01-01-2015,KOTAKBANK,Largecap,Bank
+01-01-2015,MFSL,Largecap,Miscellaneous
+01-01-2015,TVSMOTOR,Largecap,Auto
+01-01-2015,MARUTI,Largecap,Auto
+01-01-2015,INDUSTOWER,Largecap,Telecom
+01-01-2015,SAMMAANCAP,Midcap,Financials
+02-02-2015,BEL,Largecap,Aerospace & Defence
+02-02-2015,LUPIN,Largecap,Healthcare
+02-02-2015,TATAELXSI,Largecap,I.T
+02-02-2015,ASHOKLEY,Largecap,Auto
+02-02-2015,UPL,Largecap,Chemicals
+02-02-2015,INDUSINDBK,Largecap,Bank
+02-03-2015,SUNPHARMA,Largecap,Healthcare
+04-05-2015,BAJFINANCE,Largecap,Financials
+04-05-2015,TATAELXSI,Largecap,I.T
+04-05-2015,AUROPHARMA,Largecap,Healthcare
+04-05-2015,CONCOR,Largecap,Transportation
+01-06-2015,MOTHERSON,Largecap,Auto
+01-07-2015,TATAELXSI,Largecap,I.T
+01-07-2015,ASHOKLEY,Largecap,Auto
+01-07-2015,CHOLAFIN,Largecap,Financials
+01-07-2015,BAJAJFINSV,Largecap,Financials
+01-09-2015,MARUTI,Largecap,Auto
+01-09-2015,SAMMAANCAP,Midcap,Financials
+02-11-2015,KEI,Largecap,Industrials
+01-12-2015,BAJFINANCE,Largecap,Financials
+01-12-2015,AUROPHARMA,Largecap,Healthcare
+01-12-2015,UNOMINDA,Largecap,Auto
+01-12-2015,APLAPOLLO,Largecap,Industrials
+01-03-2016,BAJFINANCE,Largecap,Financials
+02-05-2016,PIDILITIND,Largecap,Chemicals
+02-05-2016,CHOLAFIN,Largecap,Financials
+01-07-2016,MFSL,Largecap,Miscellaneous
+01-07-2016,CHOLAFIN,Largecap,Financials
+01-07-2016,MANAPPURAM,Largecap,Financials
+01-08-2016,PETRONET,Largecap,Energy
+01-08-2016,BIOCON,Smallcap,Healthcare
+01-08-2016,DALBHARAT,Largecap,Building Materials
+01-09-2016,UNOMINDA,Largecap,Auto
+01-09-2016,BAJAJFINSV,Largecap,Financials
+03-10-2016,PETRONET,Largecap,Energy
+01-02-2017,KEI,Largecap,Industrials
+03-04-2017,IOC,Largecap,Energy
+03-04-2017,BAJAJFINSV,Largecap,Financials
+03-04-2017,APLAPOLLO,Largecap,Industrials
+02-05-2017,UNOMINDA,Largecap,Auto
+02-05-2017,ADANIENSOL,Largecap,Power & Utilities
+01-06-2017,APLAPOLLO,Largecap,Industrials
+03-07-2017,BAJFINANCE,Largecap,Financials
+03-07-2017,HDFCBANK,Largecap,Bank
+01-08-2017,LTF,Largecap,Financials
+01-09-2017,INDUSINDBK,Largecap,Bank
+01-09-2017,TVSMOTOR,Largecap,Auto
+01-09-2017,APLAPOLLO,Largecap,Industrials
+03-10-2017,MARUTI,Largecap,Auto
+03-10-2017,SOLARINDS,Largecap,Aerospace & Defence
+03-10-2017,GODREJPROP,Largecap,Realty
+03-10-2017,LTF,Largecap,Financials
+01-11-2017,TATACONSUM,Largecap,FMCG
+01-12-2017,TITAN,Largecap,Consumer Discretionary
+01-12-2017,ADANIENSOL,Largecap,Power & Utilities
+01-01-2018,BIOCON,Smallcap,Healthcare
+01-01-2018,GODREJPROP,Largecap,Realty
+01-01-2018,LTM,Largecap,I.T
+01-02-2018,JSWSTEEL,Largecap,Metals & Mining
+02-04-2018,BRITANNIA,Largecap,FMCG
+02-04-2018,COFORGE,Largecap,I.T
+02-04-2018,LTM,Largecap,I.T
+02-05-2018,HDFCBANK,Largecap,Bank
+02-05-2018,PIDILITIND,Largecap,Chemicals
+02-05-2018,HINDUNILVR,Largecap,FMCG
+02-05-2018,MPHASIS,Largecap,I.T
+01-06-2018,BAJFINANCE,Largecap,Financials
+02-07-2018,MPHASIS,Largecap,I.T
+02-07-2018,GODREJCP,Largecap,FMCG
+02-07-2018,LTM,Largecap,I.T
+01-08-2018,JSWSTEEL,Largecap,Metals & Mining
+01-08-2018,NESTLEIND,Largecap,FMCG
+01-08-2018,COFORGE,Largecap,I.T
+01-08-2018,PAGEIND,Largecap,Consumer Discretionary
+01-08-2018,JUBLFOOD,Largecap,Consumer Discretionary
+01-03-2019,ICICIGI,Largecap,Financials
+01-08-2019,ICICIGI,Largecap,Financials
+01-11-2019,ADANIGREEN,Largecap,Power & Utilities
+01-02-2020,PATANJALI,Largecap,FMCG
+01-04-2020,NESTLEIND,Largecap,FMCG
+01-06-2020,ADANIGREEN,Largecap,Power & Utilities
+03-08-2020,DIVISLAB,Largecap,Healthcare
+01-09-2020,LAURUSLABS,Largecap,Healthcare
+01-09-2020,DIXON,Largecap,Consumer Discretionary
+02-11-2020,DIVISLAB,Largecap,Healthcare
+01-12-2020,ASIANPAINT,Largecap,Building Materials
+01-12-2020,APLAPOLLO,Largecap,Industrials
+01-01-2021,TATAELXSI,Largecap,I.T
+01-01-2021,LTM,Largecap,I.T
+01-02-2021,ADANIENT,Largecap,Services
+01-02-2021,ADANIENSOL,Largecap,Power & Utilities
+01-02-2021,AMBER,Largecap,Consumer Discretionary
+01-03-2021,PGEL,Midcap,Consumer Discretionary
+01-04-2021,JSWSTEEL,Largecap,Metals & Mining
+01-04-2021,CDSL,Largecap,Financials
+03-05-2021,WIPRO,Largecap,I.T
+03-05-2021,ASTRAL,Largecap,Plastic products
+03-05-2021,PERSISTENT,Largecap,I.T
+01-06-2021,INFY,Largecap,I.T
+01-06-2021,SRF,Largecap,Chemicals
+01-06-2021,JSWENERGY,Largecap,Power & Utilities
+01-06-2021,POLYCAB,Largecap,Industrials
+01-07-2021,MFSL,Largecap,Miscellaneous
+01-07-2021,TATASTEEL,Largecap,Metals & Mining
+01-07-2021,APOLLOHOSP,Largecap,Healthcare
+01-07-2021,MPHASIS,Largecap,I.T
+01-07-2021,DIVISLAB,Largecap,Healthcare
+01-07-2021,COFORGE,Largecap,I.T
+02-08-2021,TATACONSUM,Largecap,FMCG
+02-08-2021,PIIND,Largecap,Chemicals
+02-08-2021,LTM,Largecap,I.T
+02-08-2021,KPITTECH,Largecap,I.T
+01-09-2021,TATAPOWER,Largecap,Power & Utilities
+01-09-2021,BAJAJFINSV,Largecap,Financials
+01-09-2021,DMART,Largecap,Consumer Discretionary
+01-09-2021,POLYCAB,Largecap,Industrials
+01-09-2021,IRCTC,Largecap,Transportation
+01-10-2021,CGPOWER,Largecap,Industrials
+01-10-2021,SOLARINDS,Largecap,Aerospace & Defence
+01-10-2021,CDSL,Largecap,Financials
+01-10-2021,DIXON,Largecap,Consumer Discretionary
+01-11-2021,APLAPOLLO,Largecap,Industrials
+01-11-2021,TIINDIA,Largecap,Industrials
+01-11-2021,KPITTECH,Largecap,I.T
+01-11-2021,POWERINDIA,Largecap,Industrials
+01-11-2021,MAXHEALTH,Largecap,Healthcare
+01-12-2021,SRF,Largecap,Chemicals
+01-12-2021,ADANIENT,Largecap,Services
+01-12-2021,KEI,Largecap,Industrials
+01-12-2021,UNOMINDA,Largecap,Auto
+01-12-2021,TECHM,Largecap,I.T
+01-12-2021,PGEL,Midcap,Consumer Discretionary
+01-12-2021,BSE,Largecap,Financials
+01-12-2021,IRCTC,Largecap,Transportation
+03-01-2022,POWERINDIA,Largecap,Industrials
+02-03-2022,TATAELXSI,Largecap,I.T
+02-03-2022,SRF,Largecap,Chemicals
+02-03-2022,ADANIENT,Largecap,Services
+01-04-2022,ADANIENSOL,Largecap,Power & Utilities
+01-04-2022,ADANIGREEN,Largecap,Power & Utilities
+01-04-2022,ANGELONE,Smallcap,Financials
+01-07-2022,BEL,Largecap,Aerospace & Defence
+01-07-2022,ADANIENT,Largecap,Services
+01-07-2022,VBL,Largecap,FMCG
+01-09-2022,SOLARINDS,Largecap,Aerospace & Defence
+03-10-2022,CGPOWER,Largecap,Industrials
+03-10-2022,TVSMOTOR,Largecap,Auto
+03-10-2022,HAL,Largecap,Aerospace & Defence
+03-10-2022,MAZDOCK,Largecap,Aerospace & Defence
+01-11-2022,PHOENIXLTD,Largecap,Realty
+01-11-2022,RVNL,Largecap,Realty
+01-12-2022,SOLARINDS,Largecap,Aerospace & Defence
+02-01-2023,CGPOWER,Largecap,Industrials
+01-03-2023,KPITTECH,Largecap,I.T
+03-04-2023,CGPOWER,Largecap,Industrials
+03-04-2023,ITC,Largecap,FMCG
+02-05-2023,VBL,Largecap,FMCG
+02-05-2023,HAL,Largecap,Aerospace & Defence
+01-06-2023,BEL,Largecap,Aerospace & Defence
+01-06-2023,SIEMENS,Largecap,Industrials
+01-06-2023,KEI,Largecap,Industrials
+03-07-2023,CUMMINSIND,Largecap,Industrials
+03-07-2023,PFC,Largecap,Financials
+03-07-2023,BDL,Largecap,Aerospace & Defence
+03-07-2023,POLYCAB,Largecap,Industrials
+03-07-2023,MAZDOCK,Largecap,Aerospace & Defence
+01-08-2023,SUPREMEIND,Largecap,Plastic products
+01-08-2023,RECLTD,Largecap,Financials
+01-08-2023,VBL,Largecap,FMCG
+01-08-2023,KALYANKJIL,Largecap,Consumer Discretionary
+01-09-2023,TVSMOTOR,Largecap,Auto
+01-09-2023,RVNL,Largecap,Realty
+01-09-2023,IRFC,Largecap,Financials
+03-10-2023,SUZLON,Largecap,Industrials
+03-10-2023,SOLARINDS,Largecap,Aerospace & Defence
+03-10-2023,BSE,Largecap,Financials
+03-10-2023,KALYANKJIL,Largecap,Consumer Discretionary
+01-11-2023,BEL,Largecap,Aerospace & Defence
+01-11-2023,TRENT,Largecap,Consumer Discretionary
+01-11-2023,PHOENIXLTD,Largecap,Realty
+01-11-2023,PRESTIGE,Largecap,Realty
+01-11-2023,PGEL,Midcap,Consumer Discretionary
+01-11-2023,MCX,Midcap,Financials
+01-11-2023,VBL,Largecap,FMCG
+01-11-2023,HAL,Largecap,Aerospace & Defence
+01-12-2023,BHEL,Largecap,Industrials
+01-12-2023,LT,Largecap,Realty
+01-12-2023,KEI,Largecap,Industrials
+01-12-2023,NTPC,Largecap,Power & Utilities
+01-12-2023,INOXWIND,Midcap,Industrials
+01-01-2024,PHOENIXLTD,Largecap,Realty
+01-01-2024,NMDC,Largecap,Metals & Mining
+01-01-2024,OFSS,Largecap,I.T
+01-01-2024,DLF,Largecap,Realty
+01-01-2024,BAJAJ-AUTO,Largecap,Auto
+01-01-2024,NHPC,Largecap,Power & Utilities
+01-01-2024,OIL,Largecap,Energy
+01-01-2024,COALINDIA,Largecap,Metals & Mining
+01-01-2024,NBCC,Largecap,Miscellaneous
+01-01-2024,HUDCO,Largecap,Financials
+01-01-2024,RVNL,Largecap,Realty
+01-01-2024,MAXHEALTH,Largecap,Healthcare
+01-02-2024,CUMMINSIND,Largecap,Industrials
+01-02-2024,BOSCHLTD,Largecap,Auto
+01-02-2024,INDHOTEL,Largecap,Services
+01-02-2024,IOC,Largecap,Energy
+01-02-2024,SOLARINDS,Largecap,Aerospace & Defence
+01-02-2024,POWERGRID,Largecap,Power & Utilities
+01-02-2024,PERSISTENT,Largecap,I.T
+01-03-2024,ABB,Largecap,Industrials
+01-03-2024,ONGC,Largecap,Energy
+01-03-2024,LT,Largecap,Realty
+01-03-2024,SIEMENS,Largecap,Industrials
+01-03-2024,TMPV,Largecap,Auto
+01-03-2024,KEI,Largecap,Industrials
+01-03-2024,ZYDUSLIFE,Largecap,Healthcare
+01-03-2024,PNB,Largecap,Bank
+01-03-2024,UNIONBANK,Largecap,Bank
+01-03-2024,TORNTPOWER,Largecap,Power & Utilities
+01-03-2024,BSE,Largecap,Financials
+01-03-2024,POWERINDIA,Largecap,Industrials
+01-04-2024,BLUESTARCO,Largecap,Consumer Discretionary
+01-04-2024,EXIDEIND,Largecap,Auto
+01-04-2024,COLPAL,Largecap,FMCG
+01-04-2024,GAIL,Largecap,Energy
+01-04-2024,CANBK,Largecap,Bank
+01-04-2024,PFC,Largecap,Financials
+01-04-2024,POWERGRID,Largecap,Power & Utilities
+01-04-2024,RECLTD,Largecap,Financials
+01-04-2024,PRESTIGE,Largecap,Realty
+01-04-2024,KPITTECH,Largecap,I.T
+02-05-2024,CGPOWER,Largecap,Industrials
+02-05-2024,HINDZINC,Largecap,Metals & Mining
+02-05-2024,M&M,Largecap,Auto
+02-05-2024,NATIONALUM,Largecap,Metals & Mining
+02-05-2024,INDIGO,Largecap,Transportation
+02-05-2024,BDL,Largecap,Aerospace & Defence
+03-06-2024,BOSCHLTD,Largecap,Auto
+03-06-2024,SUPREMEIND,Largecap,Plastic products
+03-06-2024,GAIL,Largecap,Energy
+03-06-2024,GLENMARK,Largecap,Healthcare
+03-06-2024,BHARTIARTL,Largecap,Telecom-Service
+03-06-2024,UNOMINDA,Largecap,Auto
+03-06-2024,DIXON,Largecap,Consumer Discretionary
+03-06-2024,RVNL,Largecap,Realty
+03-06-2024,KPITTECH,Largecap,I.T
+03-06-2024,MAZDOCK,Largecap,Aerospace & Defence
+03-06-2024,KALYANKJIL,Largecap,Consumer Discretionary
+03-06-2024,LODHA,Largecap,Realty
+01-07-2024,LUPIN,Largecap,Healthcare
+01-07-2024,ONGC,Largecap,Energy
+01-07-2024,TORNTPHARM,Largecap,Healthcare
+01-07-2024,BHARATFORG,Largecap,Industrials
+01-07-2024,COLPAL,Largecap,FMCG
+01-07-2024,IOC,Largecap,Energy
+01-07-2024,ZYDUSLIFE,Largecap,Healthcare
+01-07-2024,OFSS,Largecap,I.T
+01-07-2024,SUZLON,Largecap,Industrials
+01-07-2024,ADANIPORTS,Largecap,Transportation
+01-07-2024,COALINDIA,Largecap,Metals & Mining
+01-07-2024,PGEL,Midcap,Consumer Discretionary
+01-07-2024,NBCC,Largecap,Miscellaneous
+01-07-2024,360ONE,Largecap,Financials
+01-08-2024,UNOMINDA,Largecap,Auto
+01-08-2024,HDFCAMC,Largecap,Financials
+02-09-2024,CGPOWER,Largecap,Industrials
+02-09-2024,M&M,Largecap,Auto
+02-09-2024,INDHOTEL,Largecap,Services
+02-09-2024,SHRIRAMFIN,Largecap,Financials
+02-09-2024,MOTHERSON,Largecap,Auto
+02-09-2024,UNITDSPR,Largecap,FMCG
+02-09-2024,FORTIS,Largecap,Healthcare
+02-09-2024,POWERGRID,Largecap,Power & Utilities
+02-09-2024,INOXWIND,Midcap,Industrials
+02-09-2024,NIFTY,Smallcap,Indices
+02-09-2024,BSE,Largecap,Financials
+02-09-2024,POWERINDIA,Largecap,Industrials
+02-09-2024,ETERNAL,Largecap,I.T
+01-10-2024,MCX,Midcap,Financials
+01-11-2024,INDHOTEL,Largecap,Services
+01-11-2024,NATIONALUM,Largecap,Metals & Mining
+01-11-2024,CDSL,Largecap,Financials
+02-12-2024,KFINTECH,Midcap,Financials
+02-12-2024,OFSS,Largecap,I.T
+02-12-2024,OBEROIRLTY,Largecap,Realty
+02-12-2024,AMBER,Largecap,Consumer Discretionary
+02-12-2024,KALYANKJIL,Largecap,Consumer Discretionary
+01-04-2025,BSE,Largecap,Financials
+02-06-2025,BHARTIARTL,Largecap,Telecom-Service
+01-09-2025,FORTIS,Largecap,Healthcare
+03-11-2025,MUTHOOTFIN,Largecap,Financials
+01-12-2025,LAURUSLABS,Largecap,Healthcare
+01-01-2026,ASHOKLEY,Largecap,Auto
+01-01-2026,NATIONALUM,Largecap,Metals & Mining

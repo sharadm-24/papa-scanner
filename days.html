@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Backtest Dashboard</title>
+    <title>Daily Stock Backtest Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -105,16 +105,26 @@
         <header class="text-center mb-10">
             <h1
                 class="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">
-                Stock Backtest Scanner
+                Daily Backtest Scanner
             </h1>
             <div class="flex items-center justify-center space-x-4">
-                <p class="text-gray-400 text-lg font-light tracking-wide">Professional Grade Performance Analytics</p>
-                <a href="/days" class="text-cyan-400 hover:text-cyan-300 text-sm font-bold uppercase tracking-widest border border-cyan-400/30 px-3 py-1 rounded-full bg-cyan-400/5">Switch to Daily</a>
+                <p class="text-gray-400 text-lg font-light tracking-wide">Next N Days Performance Analysis</p>
+                <a href="/" class="text-cyan-400 hover:text-cyan-300 text-sm font-bold uppercase tracking-widest border border-cyan-400/30 px-3 py-1 rounded-full bg-cyan-400/5">Switch to Monthly</a>
             </div>
         </header>
 
-        <!-- Upload Section -->
+        <!-- Configuration Section -->
         <div id="upload-card" class="glass p-8 mb-8 text-center">
+            <div class="max-w-xs mx-auto mb-8">
+                <label class="block text-xs uppercase font-black text-gray-400 mb-3 tracking-widest text-left">Set Trading Days Window</label>
+                <div class="relative">
+                    <input type="number" id="days-input" value="5" min="1" max="60"
+                        class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-2xl font-bold focus:outline-none text-cyan-400 text-center shadow-inner">
+                    <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">DAYS</div>
+                </div>
+                <p class="text-[10px] text-gray-500 mt-2 italic">Scans performance for the first N trading days after entry</p>
+            </div>
+
             <div id="drop-zone" class="drop-zone p-12 rounded-xl cursor-pointer">
                 <div class="mb-4">
                     <svg class="mx-auto h-16 w-16 text-cyan-400 opacity-80" fill="none" stroke="currentColor"
@@ -168,34 +178,30 @@
                 </div>
             </div>
 
-            <!-- Filters Toolbar (INDEPENDENT FILTERS) -->
+            <!-- Filters Toolbar -->
             <div class="glass p-6 mb-8 border border-white/10 relative">
                 <div
                     class="absolute -top-3 left-6 px-3 py-1 bg-[#1a1a2e] border border-white/10 rounded-full text-[10px] uppercase font-black text-cyan-400 tracking-widest shadow-xl">
-                    Independent Filters (One active at a time)
+                    Independent Filters
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div>
-                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">1.
-                            Search Symbol</label>
+                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">Search Symbol</label>
                         <input type="text" id="filter-symbol" placeholder="e.g. RELIANCE"
                             class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none text-white placeholder-gray-600">
                     </div>
                     <div>
-                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">2. %
-                            High Gain (>=)</label>
+                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">% High Gain (>=)</label>
                         <input type="number" id="filter-min-high" placeholder="e.g. 5.0" step="0.5"
                             class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none text-white placeholder-gray-600">
                     </div>
                     <div>
-                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">3. %
-                            Low Drawdown (>=)</label>
+                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">% Low Drawdown (>=)</label>
                         <input type="number" id="filter-min-low" placeholder="e.g. -2.0" step="0.5"
                             class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none text-white placeholder-gray-600">
                     </div>
                     <div>
-                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">4. %
-                            Net Close (>=)</label>
+                        <label class="block text-[10px] uppercase font-black text-gray-500 mb-2 tracking-tighter">% Net Close (>=)</label>
                         <input type="number" id="filter-min-close" placeholder="e.g. 0.0" step="0.5"
                             class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none text-white placeholder-gray-600">
                     </div>
@@ -225,7 +231,7 @@
                                 class="text-gray-500 text-[10px] font-black uppercase tracking-widest border-b border-white/10">
                                 <th class="py-5 px-6">Symbol</th>
                                 <th class="py-5 px-6">Entry</th>
-                                <th class="py-5 px-6">Target Month</th>
+                                <th class="py-5 px-6 whitespace-nowrap">Target Window</th>
                                 <th class="py-5 px-6 opacity-30">Open</th>
                                 <th class="py-5 px-6 opacity-30">High</th>
                                 <th class="py-5 px-6 opacity-30">Low</th>
@@ -247,6 +253,7 @@
     <script>
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
+        const daysInput = document.getElementById('days-input');
         const uploadCard = document.getElementById('upload-card');
         const progressCard = document.getElementById('progress-card');
         const dashboardSection = document.getElementById('dashboard-section');
@@ -267,7 +274,6 @@
         const filterMinClose = document.getElementById('filter-min-close');
 
         let allResults = [];
-        let activeFilterId = null;
 
         dropZone.onclick = () => fileInput.click();
         dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('active'); };
@@ -285,6 +291,7 @@
         };
 
         async function handleFile(file) {
+            const daysCount = daysInput.value || 5;
             uploadCard.classList.add('hidden');
             progressCard.classList.remove('hidden');
 
@@ -292,7 +299,8 @@
             formData.append('file', file);
 
             try {
-                const response = await fetch('/scan', {
+                // Pass days as query parameter
+                const response = await fetch(`/scan_days?days=${daysCount}`, {
                     method: 'POST',
                     body: formData
                 });
@@ -342,12 +350,10 @@
             }
         }
 
-        // Independent Filter Logic: Typing in one clears the others
         [filterSymbol, filterMinHigh, filterMinLow, filterMinClose].forEach(el => {
-            el.addEventListener('input', (e) => {
-                const val = e.target.value;
+            el.addEventListener('input', () => {
+                const val = el.value;
                 if (val !== "") {
-                    // This is now the active filter. Clear others.
                     [filterSymbol, filterMinHigh, filterMinLow, filterMinClose].forEach(other => {
                         if (other !== el) {
                             other.value = "";
@@ -373,10 +379,9 @@
                 if (filterMinHigh.value !== "") return row.p_high >= minH;
                 if (filterMinLow.value !== "") return row.p_low <= minL;
                 if (filterMinClose.value !== "") return row.p_close >= minC;
-                return true; // No filter active
+                return true;
             });
 
-            // Update Stats
             const profitableCount = filtered.filter(r => r.p_close > 0).length;
             const avgReturn = filtered.length
                 ? (filtered.reduce((a, b) => a + b.p_close, 0) / filtered.length).toFixed(2)
@@ -394,7 +399,7 @@
                         ${row.symbol}
                     </td>
                     <td class="py-5 px-6 text-gray-500 font-mono text-[11px]">${row.entry_date}</td>
-                    <td class="py-5 px-6 font-bold text-gray-400 uppercase text-[10px] tracking-widest italic">${row.target_month}</td>
+                    <td class="py-5 px-6 font-bold text-gray-400 uppercase text-[10px] tracking-widest italic whitespace-nowrap">${row.target_period}</td>
                     <td class="py-5 px-6 text-gray-600 font-mono text-xs">${row.open}</td>
                     <td class="py-5 px-6 text-gray-600 font-mono text-xs">${row.high}</td>
                     <td class="py-5 px-6 text-gray-600 font-mono text-xs">${row.low}</td>

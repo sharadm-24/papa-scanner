@@ -59,7 +59,7 @@ async def process_row(row, current_time, cache, i, total_rows):
                 start=start_str, 
                 end=end_str, 
                 progress=False, 
-                auto_adjust=True,
+                auto_adjust=False,
                 group_by='ticker', 
                 timeout=20
             )
@@ -69,7 +69,7 @@ async def process_row(row, current_time, cache, i, total_rows):
                 await asyncio.sleep(0.5)
                 df_raw = await asyncio.to_thread(
                     yf.download, ticker, start=start_str, end=end_str, 
-                    progress=False, auto_adjust=True, group_by='ticker', timeout=20
+                    progress=False, auto_adjust=False, group_by='ticker', timeout=20
                 )
 
             if df_raw.empty:
@@ -181,7 +181,7 @@ async def process_row_days(row, current_time, cache, i, total_rows, days_count):
                 start=start_str, 
                 end=end_str, 
                 progress=False, 
-                auto_adjust=True,
+                auto_adjust=False,
                 group_by='ticker', 
                 timeout=20
             )
@@ -191,7 +191,7 @@ async def process_row_days(row, current_time, cache, i, total_rows, days_count):
                 await asyncio.sleep(0.5)
                 df_raw = await asyncio.to_thread(
                     yf.download, ticker, start=start_str, end=end_str, 
-                    progress=False, auto_adjust=True, group_by='ticker', timeout=20
+                    progress=False, auto_adjust=False, group_by='ticker', timeout=20
                 )
 
             if df_raw.empty:

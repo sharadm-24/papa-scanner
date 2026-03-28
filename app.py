@@ -150,6 +150,77 @@ async def get_days_page():
     with open("days.html", "r") as f:
         return HTMLResponse(content=f.read())
 
+@app.get("/index_scanner")
+async def get_index_scanner_page():
+    with open("index_scanner.html", "r") as f:
+        return HTMLResponse(content=f.read())
+
+@app.get("/index_data")
+async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
+    try:
+        end_date = datetime.now()
+        # Ensure we get enough months by using relativedelta
+        start_date = end_date - relativedelta(months=months)
+        
+        # Adjust start_date to the beginning of the month for cleaner monthly data
+        if interval == "1mo":
+            # Cast to datetime explicitly if needed, though relativedelta subtraction does this
+            start_date = datetime(start_date.year, start_date.month, 1)
+        
+        # Download historical data
+        # We use interval '1mo' or '1wk' from yfinance
+        df = await asyncio.to_thread(
+            yf.download,
+            ticker,
+            start=start_date.strftime('%Y-%m-%d'),
+            end=(end_date + timedelta(days=1)).strftime('%Y-%m-%d'),
+            interval=interval,
+            progress=False,
+            auto_adjust=False,
+            group_by='ticker'
+        )
+
+        if df.empty:
+            return {"error": "No data found for the selected index and period."}
+
+        # Handle MultiIndex if necessary
+        if isinstance(df.columns, pd.MultiIndex):
+            if ticker in df.columns.levels[0]:
+                df = df[ticker].copy()
+            else:
+                df.columns = df.columns.get_level_values(1)
+
+        results = []
+        for timestamp, row in df.iterrows():
+            if pd.isna(row['Open']) or pd.isna(row['Close']):
+                continue
+                
+            m_open = float(row['Open'])
+            m_high = float(row['High'])
+            m_low = float(row['Low'])
+            m_close = float(row['Close'])
+            
+            period_label = ""
+            if interval == "1mo":
+                period_label = timestamp.strftime('%b %Y')
+            else:
+                period_label = f"Week of {timestamp.strftime('%d %b')}"
+
+            results.append({
+                'period': period_label,
+                'open': round(m_open, 2),
+                'high': round(m_high, 2),
+                'low': round(m_low, 2),
+                'close': round(m_close, 2),
+                'p_high': round(float((m_high - m_open) / m_open * 100), 2),
+                'p_low': round(float((m_low - m_open) / m_open * 100), 2),
+                'p_close': round(float((m_close - m_open) / m_open * 100), 2)
+            })
+
+        return {"ticker": ticker, "results": results}
+    except Exception as e:
+        return {"error": str(e)}
+
 async def process_row_days(row, current_time, cache, i, total_rows, days_count):
     symbol = str(row['symbol'])
     try:

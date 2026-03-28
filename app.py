@@ -159,22 +159,16 @@ async def get_index_scanner_page():
 async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
     try:
         end_date = datetime.now()
-        # Ensure we get enough months by using relativedelta
         start_date = end_date - relativedelta(months=months)
-        
-        # Adjust start_date to the beginning of the month for cleaner monthly data
         if interval == "1mo":
-            # Cast to datetime explicitly if needed, though relativedelta subtraction does this
             start_date = datetime(start_date.year, start_date.month, 1)
-        
-        # Download historical data
-        # We use interval '1mo' or '1wk' from yfinance
+
         df = await asyncio.to_thread(
             yf.download,
             ticker,
             start=start_date.strftime('%Y-%m-%d'),
             end=(end_date + timedelta(days=1)).strftime('%Y-%m-%d'),
-            interval=interval,
+            interval="1d",
             progress=False,
             auto_adjust=False,
             group_by='ticker'
@@ -183,16 +177,24 @@ async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
         if df.empty:
             return {"error": "No data found for the selected index and period."}
 
-        # Handle MultiIndex if necessary
         if isinstance(df.columns, pd.MultiIndex):
             if ticker in df.columns.levels[0]:
                 df = df[ticker].copy()
             else:
                 df.columns = df.columns.get_level_values(1)
 
+        df = df.dropna()
+        if not df.empty:
+            freq = 'ME' if interval == '1mo' else 'W-MON'
+            try:
+                df = df.resample(freq).agg({'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last'}).dropna()
+            except ValueError:
+                fallback_freq = 'M' if interval == '1mo' else 'W-MON'
+                df = df.resample(fallback_freq).agg({'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last'}).dropna()
+
         results = []
         for timestamp, row in df.iterrows():
-            if pd.isna(row['Open']) or pd.isna(row['Close']):
+            if pd.isna(row.get('Open')) or pd.isna(row.get('Close')):
                 continue
                 
             m_open = float(row['Open'])
@@ -218,6 +220,117 @@ async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
             })
 
         return {"ticker": ticker, "results": results}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/all_indices_data")
+async def get_all_indices_data(months: int = 3, interval: str = "1mo"):
+    tickers = {
+        "^NSEI":         "Nifty 50",
+        "^NSEBANK":      "Nifty Bank",
+        "PSUBNKBEES.NS": "Nifty PSU Bank",
+        "JUNIORBEES.NS": "Nifty Pvt Bank",
+        "AUTOBEES.NS":   "Nifty Auto",
+        "ITBEES.NS":     "Nifty IT",
+        "INFRABEES.NS":  "Nifty Infra",
+        "CONSUMBEES.NS": "Nifty Consumption",
+        "^CNXMETAL":     "Nifty Metal",
+        "^CNXAUTO":      "Nifty Auto (Index)",
+        "^CNXIT":        "Nifty IT (Index)",
+    }
+    
+    try:
+        end_date = datetime.now()
+        start_date = end_date - relativedelta(months=months)
+        if interval == "1mo":
+            start_date = datetime(start_date.year, start_date.month, 1)
+
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = (end_date + timedelta(days=1)).strftime('%Y-%m-%d')
+        freq = 'ME' if interval == '1mo' else 'W-MON'
+
+        # yfinance uses a shared HTTP session; limit concurrency to avoid data corruption
+        sem = asyncio.Semaphore(1)
+
+        async def fetch_one(ticker, name):
+            """Fetch a single ticker sequentially under semaphore to avoid session collisions."""
+            async with sem:
+                try:
+                    df = await asyncio.to_thread(
+                        yf.download,
+                        tickers=ticker,
+                        start=start_str,
+                        end=end_str,
+                        interval="1d",
+                        progress=False,
+                        auto_adjust=False,
+                        timeout=20
+                    )
+                    if df.empty:
+                        return {"name": name, "results": []}
+
+                    # New yfinance returns (Price, Ticker) MultiIndex
+                    if isinstance(df.columns, pd.MultiIndex):
+                        try:
+                            df = df.xs(ticker, level=1, axis=1)
+                        except KeyError:
+                            try:
+                                df = df.xs(ticker, level=0, axis=1)
+                            except KeyError:
+                                return {"name": name, "results": []}
+
+                    # Keep only OHLC columns
+                    missing = [c for c in ['Open', 'High', 'Low', 'Close'] if c not in df.columns]
+                    if missing:
+                        return {"name": name, "results": []}
+
+                    df = df[['Open', 'High', 'Low', 'Close']].dropna()
+                    if df.empty:
+                        return {"name": name, "results": []}
+
+                    # Resample to monthly or weekly
+                    try:
+                        df_r = df.resample(freq).agg(
+                            {'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last'}
+                        ).dropna()
+                    except ValueError:
+                        fallback = 'M' if interval == '1mo' else 'W-MON'
+                        df_r = df.resample(fallback).agg(
+                            {'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last'}
+                        ).dropna()
+
+                    results = []
+                    for ts, row in df_r.iterrows():
+                        m_open = float(row['Open'])
+                        m_close = float(row['Close'])
+                        if m_open == 0:
+                            continue
+                        label = ts.strftime('%b %Y') if interval == "1mo" else f"W{ts.isocalendar()[1]}"
+                        results.append({
+                            'period': label,
+                            'open': round(m_open, 2),
+                            'close': round(m_close, 2),
+                            'p_close': round(float((m_close - m_open) / m_open * 100), 2)
+                        })
+                    return {"name": name, "results": results}
+                except Exception:
+                    return {"name": name, "results": []}
+
+        # Run with limited concurrency to prevent yfinance session corruption
+        tasks = [fetch_one(t, n) for t, n in tickers.items()]
+        results_list = list(await asyncio.gather(*tasks))
+        
+        # Determine unique periods from all results to create columns
+        all_periods = []
+        for res in results_list:
+            for r in res['results']:
+                if r['period'] not in all_periods:
+                    all_periods.append(r['period'])
+        
+        return {
+            "periods": all_periods,
+            "indices": results_list
+        }
     except Exception as e:
         return {"error": str(e)}
 

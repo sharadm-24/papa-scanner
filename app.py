@@ -141,7 +141,65 @@ async def scan(file: UploadFile = File(...)):
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/")
-async def get_index():
+async def get_home():
+    with open("home.html", "r") as f:
+        return HTMLResponse(content=f.read())
+
+@app.get("/api/ticker_data")
+async def get_ticker_data():
+    tickers = {
+        "^NSEI": "NIFTY 50",
+        "^NSEBANK": "NIFTY BANK",
+        "PSUBNKBEES.NS": "NIFTY PSU",
+        "^CNXPHARMA": "NIFTY PHARMA",
+        "^CNXREALTY": "NIFTY REALTY",
+        "^CNXCONSUM": "NIFTY CONSUM",
+        "^CNXMETAL": "NIFTY METAL",
+        "^CNXAUTO": "NIFTY AUTO",
+        "^CNXIT": "NIFTY IT",
+        "^CNXINFRA": "NIFTY INFRA",
+        "^CNXFMCG": "NIFTY FMCG",
+        "MIDSMALL.NS": "NIFTY M&S",
+        "^VIX": "INDIA VIX"
+    }
+
+    results = []
+    
+    # Run requests concurrently for speed in background threads
+    async def fetch_ticker(symbol, name):
+        try:
+            # period=2d gives us max yesterday and today to calculate recent change
+            tkr = yf.Ticker(symbol)
+            hist = await asyncio.to_thread(tkr.history, period="5d")
+            if hist.empty or len(hist) < 2:
+                return None
+            
+            # Using closing price vs previous closing price
+            prev_close = hist['Close'].iloc[-2]
+            current_close = hist['Close'].iloc[-1]
+            if prev_close == 0:
+                return None
+            
+            pct_change = ((current_close - prev_close) / prev_close) * 100
+            
+            return {
+                "name": name,
+                "change": round(pct_change, 2)
+            }
+        except Exception:
+            return None
+
+    tasks = [fetch_ticker(sym, name) for sym, name in tickers.items()]
+    fetched_data = await asyncio.gather(*tasks)
+    
+    for item in fetched_data:
+        if item is not None:
+            results.append(item)
+            
+    return {"data": results}
+
+@app.get("/backtest")
+async def get_backtest():
     with open("index.html", "r") as f:
         return HTMLResponse(content=f.read())
 
@@ -226,17 +284,19 @@ async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
 @app.get("/all_indices_data")
 async def get_all_indices_data(months: int = 3, interval: str = "1mo"):
     tickers = {
-        "^NSEI":         "Nifty 50",
-        "^NSEBANK":      "Nifty Bank",
+        "^NSEI":        "Nifty 50",
+        "^NSEBANK":     "Nifty Bank",
         "PSUBNKBEES.NS": "Nifty PSU Bank",
-        "JUNIORBEES.NS": "Nifty Pvt Bank",
-        "AUTOBEES.NS":   "Nifty Auto",
-        "ITBEES.NS":     "Nifty IT",
-        "INFRABEES.NS":  "Nifty Infra",
-        "CONSUMBEES.NS": "Nifty Consumption",
-        "^CNXMETAL":     "Nifty Metal",
-        "^CNXAUTO":      "Nifty Auto (Index)",
-        "^CNXIT":        "Nifty IT (Index)",
+        "^CNXPHARMA":   "Nifty Pharma",
+        "^CNXREALTY":   "Nifty Realty",
+        "^CNXCONSUM":   "Nifty Consumption",
+        "^CNXMETAL":    "Nifty Metal",
+        "^CNXAUTO":     "Nifty Auto",
+        "^CNXIT":       "Nifty IT",
+        "^CNXINFRA":    "Nifty Infra",
+        "^CNXFMCG":     "Nifty FMCG",
+        "MIDSMALL.NS":  "Nifty Mid & Small",
+        "^VIX":         "India VIX",
     }
     
     try:

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSAM Infotech | Market Analytics Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Outfit', sans-serif; }
+        body {
+            background: #0a0f1e;
+            min-height: 100vh;
+            color: #e9ecef;
+            overflow-x: hidden;
+        }
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(76,201,240,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(76,201,240,0.04) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 0;
+            pointer-events: none;
+        }
+        /* Radial glow */
+        body::after {
+            content: '';
+            position: fixed;
+            top: -20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 600px;
+            background: radial-gradient(ellipse, rgba(76,201,240,0.12) 0%, transparent 70%);
+            z-index: 0;
+            pointer-events: none;
+        }
+        .content { position: relative; z-index: 1; }
+
+        /* Top nav bar */
+        .topbar {
+            background: rgba(10,15,30,0.9);
+            border-bottom: 1px solid rgba(76,201,240,0.12);
+            backdrop-filter: blur(20px);
+        }
+
+        /* Dashboard cards */
+        .dash-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 24px;
+            backdrop-filter: blur(12px);
+            transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            text-decoration: none;
+            display: block;
+        }
+        .dash-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.3s;
+            border-radius: 24px;
+        }
+        .dash-card.blue::before  { background: radial-gradient(circle at 30% 40%, rgba(67,97,238,0.18), transparent 60%); }
+        .dash-card.green::before { background: radial-gradient(circle at 70% 40%, rgba(52,211,153,0.14), transparent 60%); }
+        .dash-card:hover { transform: translateY(-8px) scale(1.01); border-color: rgba(76,201,240,0.35); box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(76,201,240,0.1); }
+        .dash-card:hover::before { opacity: 1; }
+
+        .card-icon-wrap {
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid;
+        }
+
+        .stat-pill {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 12px 16px;
+            text-align: center;
+            flex: 1;
+        }
+
+        .arrow-btn {
+            background: linear-gradient(135deg, #4cc9f0, #4361ee);
+            border-radius: 14px;
+            padding: 14px 28px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 20px rgba(76,201,240,0.3);
+        }
+        .arrow-btn:hover { transform: translateX(4px); box-shadow: 0 6px 30px rgba(76,201,240,0.5); }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse-anim 2s ease-in-out infinite;
+        }
+        @keyframes pulse-anim {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.85); }
+        }
+
+        .ticker-strip {
+            background: rgba(255,255,255,0.03);
+            border-top: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .ticker-inner {
+            display: inline-block;
+            animation: scroll-ticker 30s linear infinite;
+        }
+        @keyframes scroll-ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .ticker-item { display: inline-flex; align-items: center; gap: 6px; padding: 0 32px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="topbar sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-black text-white text-sm">S</div>
+                <div>
+                    <div class="text-white font-bold text-sm leading-tight">SSAM Infotech</div>
+                    <div class="text-gray-500 text-[10px] leading-tight tracking-wide">Solutions Pvt. Ltd.</div>
+                </div>
+            </div>
+            <!-- Nav Links -->
+            <div class="hidden md:flex items-center gap-1">
+                <span class="px-4 py-2 rounded-lg text-cyan-400 bg-cyan-400/10 text-sm font-semibold">Home</span>
+                <a href="/backtest" class="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 text-sm font-medium transition">Stock Backtest</a>
+                <a href="/index_scanner" class="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 text-sm font-medium transition">Index Monitor</a>
+            </div>
+            <!-- Status -->
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20">
+                <div class="pulse-dot bg-green-400"></div>
+                <span class="text-green-400 text-xs font-bold">Live</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="content">
+        <!-- Ticker Strip -->
+        <div class="ticker-strip py-2">
+            <div class="ticker-inner" id="ticker-container">
+                <!-- Ticker items will be loaded here dynamically -->
+                <span class="ticker-item text-gray-500">Loading Live Market Data...</span>
+            </div>
+        </div>
+
+        <!-- Hero -->
+        <div class="max-w-6xl mx-auto px-6 pt-16 pb-10 text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-400/20 bg-cyan-400/5 mb-8">
+                <div class="pulse-dot bg-cyan-400"></div>
+                <span class="text-cyan-400 text-xs font-bold tracking-widest uppercase">Market Analytics Platform</span>
+            </div>
+            <h1 class="text-5xl md:text-7xl font-black text-white mb-5 leading-tight">
+                Smart <span class="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500">Market</span><br>Intelligence
+            </h1>
+            <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto font-light leading-relaxed">
+                Professional-grade tools to backtest stock strategies and monitor NSE index performance with precision.
+            </p>
+        </div>
+
+        <!-- Dashboard Cards -->
+        <div class="max-w-5xl mx-auto px-6 pb-20 grid md:grid-cols-2 gap-6">
+
+            <!-- Card 1: Stock Backtest -->
+            <a href="/backtest" class="dash-card blue p-8">
+                <div class="card-icon-wrap bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20">
+                    📊
+                </div>
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="tag text-blue-300 border-blue-500/30 bg-blue-500/10">Backtest Engine</span>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">Stock Backtest Scanner</h2>
+                <p class="text-gray-400 text-sm leading-relaxed mb-6">
+                    Upload a CSV of trade signals and measure next-month or next-N-days performance for each entry. Get High Upside, Low Drawdown, and Net Return.
+                </p>
+                <!-- Feature pills -->
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <span class="text-xs px-3 py-1 rounded-full bg-white/5 text-gray-400 border border-white/8">📅 Monthly Analysis</span>
+                    <span class="text-xs px-3 py-1 rounded-full bg-white/5 text-gray-400 border border-white/8">📈 N-Day Window</span>
+                    <span class="text-xs px-3 py-1 rounded-full bg-white/5 text-gray-400 border border-white/8">🔁 CSV Upload</span>
+                </div>
+                <div class="arrow-btn text-white">
+                    Open Scanner <span>→</span>
+                </div>
+            </a>
+
+            <!-- Card 2: Index Monitor -->
+            <a href="/index_scanner" class="dash-card green p-8">
+                <div class="card-icon-wrap bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/20">
+                    🌡️
+                </div>
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="tag text-emerald-300 border-emerald-500/30 bg-emerald-500/10">Live Heatmap</span>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">Index Monitor</h2>
+                <p class="text-gray-400 text-sm leading-relaxed mb-6">
+                    Compare all major NSE indices side-by-side on a color-coded heatmap. Track monthly or weekly performance trends for Nifty 50, Bank, IT, Pharma, Metal and more.
+                </p>
+                <!-- Feature pills -->
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <span class="text-xs px-3 py-1 rounded-full bg-white/5 text-gray-400 border border-white/8">🗂️ 13 Indices</span>
+                    <span class="text-xs px-3 py-1 rounded-full bg-white/5 text-gray-400 border border-white/8">📆 Up to 1 Year</span>
+                    <span class="text-xs px-3 py-1 rounded-full bg-white/5 text-gray-400 border border-white/8">🎨 Heatmap View</span>
+                </div>
+                <div class="arrow-btn text-white" style="background: linear-gradient(135deg, #34d399, #059669);">
+                    Open Monitor <span>→</span>
+                </div>
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <div class="border-t border-white/5 py-8 text-center">
+            <p class="text-gray-600 text-xs tracking-widest uppercase">© 2025 SSAM Infotech Solutions Pvt. Ltd. · All Rights Reserved</p>
+        </div>
+    </div>
+
+    <script>
+        async function loadLiveTicker() {
+            try {
+                const response = await fetch('/api/ticker_data');
+                const result = await response.json();
+                
+                if (result.data && result.data.length > 0) {
+                    const container = document.getElementById('ticker-container');
+                    let html = '';
+                    
+                    // Build the list of spans
+                    result.data.forEach(item => {
+                        const isUp = item.change >= 0;
+                        const sign = isUp ? '▲' : '▼';
+                        const signPlus = isUp ? '+' : '';
+                        const colorClass = isUp ? 'text-green-400' : 'text-red-400';
+                        
+                        html += `<span class="ticker-item text-gray-500">${item.name} <span class="${colorClass}">${sign} ${signPlus}${item.change}%</span></span>`;
+                    });
+                    
+                    // Duplicate for seamless infinite scrolling loop
+                    container.innerHTML = html + html;
+                }
+            } catch (error) {
+                console.error("Failed to load live ticker", error);
+            }
+        }
+        
+        loadLiveTicker();
+    </script>
+</body>
+</html>

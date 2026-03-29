@@ -140,34 +140,43 @@
             vertical-align: middle;
         }
 
-        .index-name-col {
-            font-weight: 700;
-            color: white;
-            font-size: 13px;
-            position: sticky;
-            left: 0;
-            z-index: 10;
-            background: #16213e;
-            box-shadow: 5px 0 10px rgba(0,0,0,0.3);
-            white-space: nowrap;
-            padding: 10px 16px;
-            min-width: 160px;
-        }
+        .topbar { background:rgba(10,15,30,0.92); border-bottom:1px solid rgba(76,201,240,0.12); backdrop-filter:blur(20px); position:sticky; top:0; z-index:100; }
+        .nav-link { padding:8px 16px; border-radius:8px; font-size:14px; font-weight:500; color:#9ca3af; transition:all 0.2s; text-decoration:none; }
+        .nav-link:hover { color:white; background:rgba(255,255,255,0.06); }
+        .nav-link.active { color:#4cc9f0; background:rgba(76,201,240,0.08); font-weight:600; }
+        .pulse-dot { width:8px; height:8px; border-radius:50%; animation:pulse-a 2s ease-in-out infinite; }
+        @keyframes pulse-a { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.85)} }
     </style>
 </head>
 
-<body class="p-4 md:p-8">
-    <div class="max-w-7xl mx-auto">
-        <!-- Header -->
-        <header class="text-center mb-10">
-            <h1
-                class="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">
-                Indices Side-by-Side
-            </h1>
-            <div class="flex items-center justify-center space-x-4">
-                <p class="text-gray-400 text-lg font-light tracking-wide">Multi-Index Comparative Performance</p>
-                <a href="/" class="text-cyan-400 hover:text-cyan-300 text-sm font-bold uppercase tracking-widest border border-cyan-400/30 px-3 py-1 rounded-full bg-cyan-400/5 transition">Main Scanner</a>
+<body class="p-0 m-0">
+    <nav class="topbar">
+        <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="/" class="flex items-center gap-3" style="text-decoration:none">
+                    <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#4cc9f0,#4361ee);display:flex;align-items:center;justify-content:center;font-weight:900;color:white;font-size:14px">S</div>
+                    <div>
+                        <div style="font-weight:700;font-size:14px;color:white;line-height:1.2">SSAM Infotech</div>
+                        <div style="font-size:10px;color:#6b7280;line-height:1.2;letter-spacing:.05em">Solutions Pvt. Ltd.</div>
+                    </div>
+                </a>
             </div>
+            <div class="hidden md:flex items-center gap-1">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/backtest" class="nav-link">Stock Backtest</a>
+                <a href="/index_scanner" class="nav-link active">Index Monitor</a>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2)">
+                <div class="pulse-dot" style="background:#34d399"></div>
+                <span style="color:#34d399;font-size:11px;font-weight:700">Live</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 md:px-8 pt-8 pb-12">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-500 mb-1">Index Monitor</h1>
+            <p class="text-gray-500 text-sm">Multi-Index Comparative Performance Heatmap</p>
         </header>
 
         <!-- Selection Controls -->

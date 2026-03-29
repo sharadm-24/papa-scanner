@@ -150,7 +150,7 @@ async def get_ticker_data():
     tickers = {
         "^NSEI": "NIFTY 50",
         "^NSEBANK": "NIFTY BANK",
-        "PSUBNKBEES.NS": "NIFTY PSU",
+        "^CNXPSUBANK": "NIFTY PSU",
         "^CNXPHARMA": "NIFTY PHARMA",
         "^CNXREALTY": "NIFTY REALTY",
         "^CNXCONSUM": "NIFTY CONSUM",
@@ -159,7 +159,8 @@ async def get_ticker_data():
         "^CNXIT": "NIFTY IT",
         "^CNXINFRA": "NIFTY INFRA",
         "^CNXFMCG": "NIFTY FMCG",
-        "MIDSMALL.NS": "NIFTY M&S",
+        "NIFTY_MID_SELECT.NS": "NIFTY MID SEL",
+        "NIFTY_PVT_BANK.NS": "NIFTY PVT BANK",
         "^VIX": "INDIA VIX"
     }
 
@@ -286,7 +287,8 @@ async def get_all_indices_data(months: int = 3, interval: str = "1mo"):
     tickers = {
         "^NSEI":        "Nifty 50",
         "^NSEBANK":     "Nifty Bank",
-        "PSUBNKBEES.NS": "Nifty PSU Bank",
+        "NIFTY_PVT_BANK.NS": "Nifty Pvt Bank",
+        "^CNXPSUBANK":  "Nifty PSU Bank",
         "^CNXPHARMA":   "Nifty Pharma",
         "^CNXREALTY":   "Nifty Realty",
         "^CNXCONSUM":   "Nifty Consumption",
@@ -295,13 +297,14 @@ async def get_all_indices_data(months: int = 3, interval: str = "1mo"):
         "^CNXIT":       "Nifty IT",
         "^CNXINFRA":    "Nifty Infra",
         "^CNXFMCG":     "Nifty FMCG",
-        "MIDSMALL.NS":  "Nifty Mid & Small",
+        "NIFTY_MID_SELECT.NS": "Nifty Mid Select",
         "^VIX":         "India VIX",
     }
     
     try:
         end_date = datetime.now()
-        start_date = end_date - relativedelta(months=months)
+        # Fetch one extra month/week of data to provide a previous close to compare against
+        start_date = end_date - relativedelta(months=months + 1)
         if interval == "1mo":
             start_date = datetime(start_date.year, start_date.month, 1)
 
@@ -358,19 +361,23 @@ async def get_all_indices_data(months: int = 3, interval: str = "1mo"):
                         df_r = df.resample(fallback).agg(
                             {'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last'}
                         ).dropna()
+                    df_r['Prev_Close'] = df_r['Close'].shift(1)
 
                     results = []
                     for ts, row in df_r.iterrows():
+                        if pd.isna(row['Prev_Close']):
+                            continue
                         m_open = float(row['Open'])
                         m_close = float(row['Close'])
-                        if m_open == 0:
+                        p_close = float(row['Prev_Close'])
+                        if p_close == 0:
                             continue
                         label = ts.strftime('%b %Y') if interval == "1mo" else f"W{ts.isocalendar()[1]}"
                         results.append({
                             'period': label,
                             'open': round(m_open, 2),
                             'close': round(m_close, 2),
-                            'p_close': round(float((m_close - m_open) / m_open * 100), 2)
+                            'p_close': round(float((m_close - p_close) / p_close * 100), 2)
                         })
                     return {"name": name, "results": results}
                 except Exception:

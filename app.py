@@ -150,7 +150,6 @@ async def get_ticker_data():
     tickers = {
         "^NSEI": "NIFTY 50",
         "^NSEBANK": "NIFTY BANK",
-        "^CNXPSUBANK": "NIFTY PSU",
         "^CNXPHARMA": "NIFTY PHARMA",
         "^CNXREALTY": "NIFTY REALTY",
         "^CNXCONSUM": "NIFTY CONSUM",
@@ -220,7 +219,9 @@ async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
         end_date = datetime.now()
         start_date = end_date - relativedelta(months=months)
         if interval == "1mo":
-            start_date = datetime(start_date.year, start_date.month, 1)
+            start_date = datetime(start_date.year, start_date.month, 1) - relativedelta(months=1)
+        else:
+            start_date -= timedelta(weeks=1)
 
         df = await asyncio.to_thread(
             yf.download,
@@ -288,7 +289,6 @@ async def get_all_indices_data(months: int = 3, interval: str = "1mo"):
         "^NSEI":        "Nifty 50",
         "^NSEBANK":     "Nifty Bank",
         "NIFTY_PVT_BANK.NS": "Nifty Pvt Bank",
-        "^CNXPSUBANK":  "Nifty PSU Bank",
         "^CNXPHARMA":   "Nifty Pharma",
         "^CNXREALTY":   "Nifty Realty",
         "^CNXCONSUM":   "Nifty Consumption",

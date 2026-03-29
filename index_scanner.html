@@ -140,6 +140,20 @@
             vertical-align: middle;
         }
 
+        .index-name-col {
+            position: sticky;
+            left: 0;
+            background: #111d35 !important;
+            z-index: 10;
+            white-space: nowrap;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+            font-weight: bold;
+        }
+
+        thead .index-name-col {
+            z-index: 20;
+        }
+
         .topbar { background:rgba(10,15,30,0.92); border-bottom:1px solid rgba(76,201,240,0.12); backdrop-filter:blur(20px); position:sticky; top:0; z-index:100; }
         .nav-link { padding:8px 16px; border-radius:8px; font-size:14px; font-weight:500; color:#9ca3af; transition:all 0.2s; text-decoration:none; }
         .nav-link:hover { color:white; background:rgba(255,255,255,0.06); }

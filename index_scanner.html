@@ -371,7 +371,8 @@
                     if (res) {
                         const bClass = getBadgeClass(res.p_close);
                         const pct = (res.p_close >= 0 ? '+' : '') + res.p_close + '%';
-                        const openStr = res.open  ? 'O: ' + formatPrice(res.open)  : '';
+                        const base = res.prev_close != null ? res.prev_close : res.open;
+                        const openStr = base != null ? 'O: ' + formatPrice(base) : '';
                         const closeStr = res.close ? 'C: ' + formatPrice(res.close) : '';
                         rowHtml += `
                             <td style="text-align:center; padding: 8px;">

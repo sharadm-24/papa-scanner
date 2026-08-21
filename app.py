@@ -84,6 +84,22 @@ def skip_entry(symbol: str, reason: str) -> dict:
     return {"symbol": symbol, "reason": reason}
 
 
+def pct_vs_base(value: float, base: float) -> float:
+    """Percent change vs prior close (not vs period open)."""
+    return round(float((value - base) / base * 100), 2)
+
+
+def _ensure_naive_index(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return df
+    idx = df.index
+    if getattr(idx, "tz", None) is not None:
+        out = df.copy()
+        out.index = idx.tz_localize(None)
+        return out
+    return df
+
+
 async def process_row(row, current_time, cache, skipped):
     symbol = str(row["symbol"]).strip()
     try:
@@ -93,80 +109,66 @@ async def process_row(row, current_time, cache, skipped):
             return None
 
         target_month_start = (entry_date + relativedelta(months=1)).replace(day=1)
+        target_month_end = target_month_start + relativedelta(months=1)
         if target_month_start > current_time:
             skipped.append(skip_entry(symbol, "future_target_month"))
             return None
 
-        start_str = target_month_start.strftime("%Y-%m-%d")
-        end_str = (target_month_start + relativedelta(months=1)).strftime("%Y-%m-%d")
+        # Include prior month so % can use last month's close as baseline.
+        fetch_start = (target_month_start - relativedelta(months=1)).strftime("%Y-%m-%d")
+        fetch_end = target_month_end.strftime("%Y-%m-%d")
         ticker = get_nse_ticker(symbol)
-        cache_key = (ticker, start_str, end_str)
+        cache_key = (ticker, fetch_start, fetch_end, "monthly_prev_close")
 
         if cache_key not in cache:
-            df_raw = await asyncio.to_thread(
-                yf_download,
+            df_clean = await asyncio.to_thread(
+                download_ohlc,
                 ticker,
-                start=start_str,
-                end=end_str,
-                progress=False,
-                auto_adjust=False,
-                group_by="ticker",
-                timeout=20,
+                start=fetch_start,
+                end=fetch_end,
+                interval="1d",
+                retries=2 if not YF_FIXTURE_MODE else 1,
             )
-            if df_raw.empty and not YF_FIXTURE_MODE:
-                await asyncio.sleep(0.5)
-                df_raw = await asyncio.to_thread(
-                    yf_download,
-                    ticker,
-                    start=start_str,
-                    end=end_str,
-                    progress=False,
-                    auto_adjust=False,
-                    group_by="ticker",
-                    timeout=20,
-                )
-            if df_raw.empty:
-                cache[cache_key] = None
-            else:
-                if isinstance(df_raw.columns, pd.MultiIndex):
-                    if ticker in df_raw.columns.levels[0]:
-                        df_clean = df_raw[ticker].copy()
-                    else:
-                        df_clean = df_raw.copy()
-                        df_clean.columns = df_clean.columns.get_level_values(1)
-                else:
-                    df_clean = df_raw.copy()
-                cache[cache_key] = df_clean
+            cache[cache_key] = None if df_clean.empty else df_clean
 
         data = cache[cache_key]
         if data is None or data.empty:
             skipped.append(skip_entry(symbol, "no_market_data"))
             return None
 
-        cols = data.columns.tolist()
-        if not all(c in cols for c in ["Open", "High", "Low", "Close"]):
-            skipped.append(skip_entry(symbol, "incomplete_ohlc"))
+        data = _ensure_naive_index(data)
+        start_ts = pd.Timestamp(target_month_start)
+        end_ts = pd.Timestamp(target_month_end)
+        prior = data[data.index < start_ts]
+        month = data[(data.index >= start_ts) & (data.index < end_ts)]
+        if prior.empty:
+            skipped.append(skip_entry(symbol, "no_prior_close"))
+            return None
+        if month.empty:
+            skipped.append(skip_entry(symbol, "no_market_data"))
             return None
 
-        m_open = float(data["Open"].iloc[0])
-        if m_open == 0:
-            skipped.append(skip_entry(symbol, "zero_open"))
+        base = float(prior["Close"].iloc[-1])
+        if base == 0:
+            skipped.append(skip_entry(symbol, "zero_prior_close"))
             return None
 
-        m_high = float(data["High"].max())
-        m_low = float(data["Low"].min())
-        m_close = float(data["Close"].iloc[-1])
+        m_open = float(month["Open"].iloc[0])
+        m_high = float(month["High"].max())
+        m_low = float(month["Low"].min())
+        m_close = float(month["Close"].iloc[-1])
         return {
             "entry_date": str(row["date"]),
             "symbol": symbol,
             "target_month": target_month_start.strftime("%b-%Y"),
+            "prev_close": round(base, 2),
             "open": round(m_open, 2),
             "high": round(m_high, 2),
             "low": round(m_low, 2),
             "close": round(m_close, 2),
-            "p_high": round(float((m_high - m_open) / m_open * 100), 2),
-            "p_low": round(float((m_low - m_open) / m_open * 100), 2),
-            "p_close": round(float((m_close - m_open) / m_open * 100), 2),
+            "p_high": pct_vs_base(m_high, base),
+            "p_low": pct_vs_base(m_low, base),
+            "p_close": pct_vs_base(m_close, base),
         }
     except Exception as e:
         skipped.append(skip_entry(symbol, f"error:{type(e).__name__}"))
@@ -255,9 +257,9 @@ async def process_row_days(row, current_time, cache, days_count, skipped):
             "high": round(m_high, 2),
             "low": round(m_low, 2),
             "close": round(m_close, 2),
-            "p_high": round(float((m_high - m_open) / m_open * 100), 2),
-            "p_low": round(float((m_low - m_open) / m_open * 100), 2),
-            "p_close": round(float((m_close - m_open) / m_open * 100), 2),
+            "p_high": pct_vs_base(m_high, m_open),
+            "p_low": pct_vs_base(m_low, m_open),
+            "p_close": pct_vs_base(m_close, m_open),
         }
     except Exception as e:
         skipped.append(skip_entry(symbol, f"error:{type(e).__name__}"))
@@ -523,13 +525,19 @@ async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
                 .dropna()
             )
 
+        # Monthly/weekly % vs prior period close (e.g. Jan vs Dec close), not vs period open.
+        df["Prev_Close"] = df["Close"].shift(1)
+
         results = []
         for timestamp, row in df.iterrows():
             if pd.isna(row.get("Open")) or pd.isna(row.get("Close")):
                 continue
-            m_open = float(row["Open"])
-            if m_open == 0:
+            if pd.isna(row.get("Prev_Close")):
                 continue
+            base = float(row["Prev_Close"])
+            if base == 0:
+                continue
+            m_open = float(row["Open"])
             m_high = float(row["High"])
             m_low = float(row["Low"])
             m_close = float(row["Close"])
@@ -541,13 +549,14 @@ async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
             results.append(
                 {
                     "period": period_label,
+                    "prev_close": round(base, 2),
                     "open": round(m_open, 2),
                     "high": round(m_high, 2),
                     "low": round(m_low, 2),
                     "close": round(m_close, 2),
-                    "p_high": round(float((m_high - m_open) / m_open * 100), 2),
-                    "p_low": round(float((m_low - m_open) / m_open * 100), 2),
-                    "p_close": round(float((m_close - m_open) / m_open * 100), 2),
+                    "p_high": pct_vs_base(m_high, base),
+                    "p_low": pct_vs_base(m_low, base),
+                    "p_close": pct_vs_base(m_close, base),
                 }
             )
         return {"ticker": ticker, "results": results}
@@ -650,8 +659,8 @@ async def get_all_indices_data(
                                 continue
                             m_open = float(row["Open"])
                             m_close = float(row["Close"])
-                            p_close = float(row["Prev_Close"])
-                            if p_close == 0:
+                            base = float(row["Prev_Close"])
+                            if base == 0:
                                 continue
                             label = (
                                 ts.strftime("%b %Y")
@@ -661,11 +670,11 @@ async def get_all_indices_data(
                             results.append(
                                 {
                                     "period": label,
+                                    "prev_close": round(base, 2),
                                     "open": round(m_open, 2),
                                     "close": round(m_close, 2),
-                                    "p_close": round(
-                                        float((m_close - p_close) / p_close * 100), 2
-                                    ),
+                                    # % vs prior period close (Dec close → Jan), not vs period open.
+                                    "p_close": pct_vs_base(m_close, base),
                                 }
                             )
                         if results:

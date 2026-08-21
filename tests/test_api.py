@@ -81,6 +81,24 @@ async def test_scan_valid_csv(client):
 
 
 @pytest.mark.asyncio
+async def test_scan_monthly_pct_uses_prior_close(client):
+    """Monthly High/Low/Close % must use prior month close, not target-month open."""
+    files = {"file": ("valid.csv", (FIXTURES / "valid_signals.csv").read_bytes(), "text/csv")}
+    r = await client.post("/scan", files=files)
+    events = parse_sse(r.text)
+    complete = next(e for e in events if e["type"] == "complete")
+    assert complete["results"], "expected at least one monthly result"
+    for row in complete["results"]:
+        assert "prev_close" in row and row["prev_close"] > 0
+        base = row["prev_close"]
+        expected = round((row["close"] - base) / base * 100, 2)
+        assert row["p_close"] == expected
+        open_based = round((row["close"] - row["open"]) / row["open"] * 100, 2)
+        if abs(row["open"] - base) > 0.01:
+            assert row["p_close"] != open_based
+
+
+@pytest.mark.asyncio
 async def test_scan_bad_headers(client):
     files = {"file": ("bad.csv", (FIXTURES / "bad_headers.csv").read_bytes(), "text/csv")}
     r = await client.post("/scan", files=files)

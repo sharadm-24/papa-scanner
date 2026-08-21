@@ -278,13 +278,14 @@
                                 <th class="py-5 px-6">Symbol</th>
                                 <th class="py-5 px-6">Entry</th>
                                 <th class="py-5 px-6">Target Month</th>
+                                <th class="py-5 px-6 opacity-30" title="Prior month last close (baseline for %)">Prev Close</th>
                                 <th class="py-5 px-6 opacity-30">Open</th>
                                 <th class="py-5 px-6 opacity-30">High</th>
                                 <th class="py-5 px-6 opacity-30">Low</th>
                                 <th class="py-5 px-6 opacity-30">Close</th>
-                                <th class="py-5 px-6 text-right text-emerald-400 bg-emerald-400/5">High %</th>
-                                <th class="py-5 px-6 text-right text-rose-500 bg-rose-500/5">Low %</th>
-                                <th class="py-5 px-6 text-right text-white bg-white/5">Close %</th>
+                                <th class="py-5 px-6 text-right text-emerald-400 bg-emerald-400/5" title="vs prior month close">High %</th>
+                                <th class="py-5 px-6 text-right text-rose-500 bg-rose-500/5" title="vs prior month close">Low %</th>
+                                <th class="py-5 px-6 text-right text-white bg-white/5" title="vs prior month close">Close %</th>
                             </tr>
                         </thead>
                         <tbody id="results-body" class="text-sm">
@@ -492,6 +493,7 @@
                     </td>
                     <td class="py-5 px-6 text-gray-500 font-mono text-[11px]">${row.entry_date}</td>
                     <td class="py-5 px-6 font-bold text-gray-400 uppercase text-[10px] tracking-widest italic">${row.target_month}</td>
+                    <td class="py-5 px-6 text-cyan-700/80 font-mono text-xs">${row.prev_close ?? '–'}</td>
                     <td class="py-5 px-6 text-gray-600 font-mono text-xs">${row.open}</td>
                     <td class="py-5 px-6 text-gray-600 font-mono text-xs">${row.high}</td>
                     <td class="py-5 px-6 text-gray-600 font-mono text-xs">${row.low}</td>
@@ -505,7 +507,7 @@
             `).join('');
 
             if (filtered.length === 0) {
-                resultsBody.innerHTML = `<tr><td colspan="10" class="py-40 text-center text-gray-600 uppercase font-black tracking-[1em] text-xs">No Data Matched</td></tr>`;
+                resultsBody.innerHTML = `<tr><td colspan="11" class="py-40 text-center text-gray-600 uppercase font-black tracking-[1em] text-xs">No Data Matched</td></tr>`;
             }
         }
     </script>

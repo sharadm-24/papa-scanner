@@ -611,22 +611,24 @@ async def get_all_indices_data(
                         "status": "no_yahoo_data",
                         "message": "Yahoo returned no OHLC for this index",
                     }
-                    for ticker in symbols:
-                        df = await asyncio.to_thread(
-                            download_ohlc,
-                            ticker,
-                            start=start_str,
-                            end=end_str,
-                            interval="1d",
-                            retries=3 if not YF_FIXTURE_MODE else 1,
-                            pause_sec=0.9,
-                        )
-                        if df.empty:
-                            continue
+                    # On Vercel, date-range download often returns 1 bar for sector CNX
+                    # symbols; history(period=) is denser. Try both.
+                    hist_period = "2y" if months >= 12 else "1y"
 
+                    def build_results(df: pd.DataFrame):
+                        if df is None or df.empty:
+                            return []
+                        work = df.copy()
+                        if getattr(work.index, "tz", None) is not None:
+                            work.index = work.index.tz_localize(None)
+                        start_ts = pd.Timestamp(start_str)
+                        end_ts = pd.Timestamp(end_str)
+                        work = work[(work.index >= start_ts) & (work.index < end_ts)]
+                        if work.empty:
+                            return []
                         try:
                             df_r = (
-                                df.resample(freq)
+                                work.resample(freq)
                                 .agg(
                                     {
                                         "Open": "first",
@@ -640,7 +642,7 @@ async def get_all_indices_data(
                         except ValueError:
                             fallback = "M" if interval == "1mo" else "W-MON"
                             df_r = (
-                                df.resample(fallback)
+                                work.resample(fallback)
                                 .agg(
                                     {
                                         "Open": "first",
@@ -652,8 +654,7 @@ async def get_all_indices_data(
                                 .dropna()
                             )
                         df_r["Prev_Close"] = df_r["Close"].shift(1)
-
-                        results = []
+                        out = []
                         for ts, row in df_r.iterrows():
                             if pd.isna(row["Prev_Close"]):
                                 continue
@@ -667,23 +668,53 @@ async def get_all_indices_data(
                                 if interval == "1mo"
                                 else f"W{ts.isocalendar()[1]}"
                             )
-                            results.append(
+                            out.append(
                                 {
                                     "period": label,
                                     "prev_close": round(base, 2),
                                     "open": round(m_open, 2),
                                     "close": round(m_close, 2),
-                                    # % vs prior period close (Dec close → Jan), not vs period open.
                                     "p_close": pct_vs_base(m_close, base),
                                 }
                             )
-                        if results:
-                            return {
-                                "name": name,
-                                "results": results,
-                                "status": "ok",
-                                "ticker": ticker,
-                            }
+                        return out
+
+                    for ticker in symbols:
+                        frames = []
+                        df = await asyncio.to_thread(
+                            download_ohlc,
+                            ticker,
+                            start=start_str,
+                            end=end_str,
+                            interval="1d",
+                            retries=3 if not YF_FIXTURE_MODE else 1,
+                            pause_sec=0.9,
+                        )
+                        if not df.empty:
+                            frames.append(df)
+                        # Fallback when download is empty/sparse (common on Vercel).
+                        if YF_FIXTURE_MODE:
+                            hist = pd.DataFrame()
+                        else:
+                            hist = await asyncio.to_thread(
+                                history_ohlc,
+                                ticker,
+                                hist_period,
+                                3,
+                            )
+                        if not hist.empty:
+                            frames.append(hist)
+
+                        for frame in frames:
+                            results = build_results(frame)
+                            if results:
+                                return {
+                                    "name": name,
+                                    "results": results,
+                                    "status": "ok",
+                                    "ticker": ticker,
+                                }
+
                         last_status = {
                             "name": name,
                             "results": [],

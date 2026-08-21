@@ -160,7 +160,10 @@
         .nav-link.active { color:#4cc9f0; background:rgba(76,201,240,0.08); font-weight:600; }
         .pulse-dot { width:8px; height:8px; border-radius:50%; animation:pulse-a 2s ease-in-out infinite; }
         @keyframes pulse-a { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.85)} }
+        #error-banner { display:none; }
+        #error-banner.visible { display:block; }
     </style>
+    <script src="/static/papa-ui.js"></script>
 </head>
 
 <body class="p-0 m-0">
@@ -192,6 +195,8 @@
             <h1 class="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-500 mb-1">Index Monitor</h1>
             <p class="text-gray-500 text-sm">Multi-Index Comparative Performance Heatmap</p>
         </header>
+
+        <div id="error-banner" class="mb-6 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-rose-200 text-sm" role="alert"></div>
 
         <!-- Selection Controls -->
         <div class="glass p-8 mb-8">
@@ -270,9 +275,23 @@
         const emptyState = document.getElementById('empty-state');
         const tableHead = document.getElementById('table-head');
         const tableBody = document.getElementById('table-body');
+        const errorBanner = document.getElementById('error-banner');
 
         const btnMonthly = document.getElementById('btn-monthly');
         const btnWeekly = document.getElementById('btn-weekly');
+
+        function showError(msg) {
+            errorBanner.textContent = msg;
+            errorBanner.classList.add('visible');
+            PapaUI.showToast(msg, 'error');
+            emptyState.classList.remove('hidden');
+            resultsContainer.classList.add('hidden');
+        }
+
+        function clearError() {
+            errorBanner.classList.remove('visible');
+            errorBanner.textContent = '';
+        }
 
         btnMonthly.onclick = () => {
             currentInterval = '1mo';
@@ -288,25 +307,27 @@
 
         scanBtn.onclick = async () => {
             const months = document.getElementById('duration-select').value;
-
+            clearError();
             scanBtn.disabled = true;
             btnLoader.classList.remove('hidden');
             emptyState.classList.add('hidden');
 
             try {
                 const response = await fetch(`/all_indices_data?months=${months}&interval=${currentInterval}`);
+                if (!response.ok) {
+                    showError('Failed to fetch data (HTTP ' + response.status + ')');
+                    return;
+                }
                 const data = await response.json();
 
                 if (data.error || data.detail) {
-                    alert(data.error || data.detail || "Unknown server error");
-                    emptyState.classList.remove('hidden');
+                    showError(data.error || data.detail || "Unknown server error");
                     return;
                 }
 
                 renderTable(data);
             } catch (error) {
-                alert("Failed to fetch data: " + error.message);
-                emptyState.classList.remove('hidden');
+                showError("Failed to fetch data: " + error.message);
             } finally {
                 scanBtn.disabled = false;
                 btnLoader.classList.add('hidden');

@@ -151,6 +151,7 @@
         }
         .ticker-item { display: inline-flex; align-items: center; gap: 6px; padding: 0 32px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; }
     </style>
+    <script src="/static/papa-ui.js"></script>
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -182,8 +183,13 @@
         <!-- Ticker Strip -->
         <div class="ticker-strip py-2">
             <div class="ticker-inner" id="ticker-container">
-                <!-- Ticker items will be loaded here dynamically -->
                 <span class="ticker-item text-gray-500">Loading Live Market Data...</span>
+            </div>
+        </div>
+        <div id="ticker-error" class="hidden max-w-6xl mx-auto px-6 pt-3">
+            <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-rose-200 text-sm flex items-center justify-between gap-3" role="alert">
+                <span id="ticker-error-msg">Failed to load live market data.</span>
+                <button type="button" id="ticker-retry" class="text-xs font-bold uppercase tracking-widest text-white border border-white/20 px-3 py-1 rounded-lg">Retry</button>
             </div>
         </div>
 
@@ -259,32 +265,40 @@
 
     <script>
         async function loadLiveTicker() {
+            const errBox = document.getElementById('ticker-error');
+            const container = document.getElementById('ticker-container');
+            errBox.classList.add('hidden');
             try {
                 const response = await fetch('/api/ticker_data');
+                if (!response.ok) throw new Error('HTTP ' + response.status);
                 const result = await response.json();
-                
+
                 if (result.data && result.data.length > 0) {
-                    const container = document.getElementById('ticker-container');
                     let html = '';
-                    
-                    // Build the list of spans
                     result.data.forEach(item => {
                         const isUp = item.change >= 0;
                         const sign = isUp ? '▲' : '▼';
                         const signPlus = isUp ? '+' : '';
                         const colorClass = isUp ? 'text-green-400' : 'text-red-400';
-                        
                         html += `<span class="ticker-item text-gray-500">${item.name} <span class="${colorClass}">${sign} ${signPlus}${item.change}%</span></span>`;
                     });
-                    
-                    // Duplicate for seamless infinite scrolling loop
                     container.innerHTML = html + html;
+                } else {
+                    container.innerHTML = '<span class="ticker-item text-gray-500">No live ticker data available</span>';
+                    errBox.classList.remove('hidden');
+                    document.getElementById('ticker-error-msg').textContent = 'Live ticker returned no symbols.';
+                    PapaUI.showToast('Live ticker returned no symbols.', 'error');
                 }
             } catch (error) {
                 console.error("Failed to load live ticker", error);
+                container.innerHTML = '<span class="ticker-item text-gray-500">Live market data unavailable</span>';
+                errBox.classList.remove('hidden');
+                document.getElementById('ticker-error-msg').textContent = 'Failed to load live market data.';
+                PapaUI.showToast('Failed to load live market data.', 'error');
             }
         }
-        
+
+        document.getElementById('ticker-retry').onclick = loadLiveTicker;
         loadLiveTicker();
     </script>
 </body>

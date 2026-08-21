@@ -106,7 +106,10 @@
         .mode-tab.active-tab { background: linear-gradient(135deg, #4cc9f0, #4361ee); color: white; border-color: transparent; }
         .mode-tab:not(.active-tab) { color: #8b92a0; border-color: rgba(255,255,255,0.1); }
         .mode-tab:not(.active-tab):hover { color: #e5e7eb; border-color: rgba(255,255,255,0.25); background:rgba(255,255,255,0.02); }
+        #error-banner { display:none; }
+        #error-banner.visible { display:block; }
     </style>
+    <script src="/static/papa-ui.js"></script>
 </head>
 
 <body class="p-0 m-0">
@@ -145,6 +148,8 @@
         </header>
 
 
+        <div id="error-banner" class="mb-6 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-rose-200 text-sm" role="alert"></div>
+
         <!-- Configuration Section -->
         <div id="upload-card" class="glass p-8 mb-8 text-center">
             <div class="max-w-xs mx-auto mb-8">
@@ -169,6 +174,10 @@
                 <p class="text-xl font-medium mb-1">Upload Results CSV</p>
                 <p class="text-sm text-gray-500">Drag & drop or click to analyze</p>
                 <input type="file" id="file-input" class="hidden" accept=".csv">
+            </div>
+            <div class="mt-5 flex flex-wrap gap-3 justify-center">
+                <a href="/sample.csv" class="text-xs uppercase tracking-widest font-bold text-cyan-400 hover:text-white border border-cyan-400/30 px-4 py-2 rounded-lg">Download Sample CSV</a>
+                <button type="button" id="use-sample-btn" class="text-xs uppercase tracking-widest font-bold text-white bg-cyan-500/20 border border-cyan-400/30 px-4 py-2 rounded-lg">Try Sample</button>
             </div>
         </div>
 
@@ -248,11 +257,14 @@
                         <h2 class="text-xl font-bold text-white tracking-tight">Technical Data Table</h2>
                     </div>
                     <div class="flex items-center space-x-4">
+                        <span id="skipped-badge" class="px-3 py-1 bg-amber-500/10 rounded-full text-[10px] font-bold text-amber-300 hidden">0 SKIPPED</span>
                         <span id="result-count-badge"
                             class="px-3 py-1 bg-white/10 rounded-full text-[10px] font-bold text-cyan-400">0
                             RESULTS</span>
-                        <button onclick="location.reload()"
-                            class="text-xs text-gray-500 hover:text-white transition uppercase font-black tracking-widest text-[10px]">Refresh</button>
+                        <button type="button" id="export-csv-btn"
+                            class="text-xs text-cyan-400 hover:text-white transition uppercase font-black tracking-widest text-[10px]">Export</button>
+                        <button type="button" id="refresh-btn"
+                            class="text-xs text-gray-500 hover:text-white transition uppercase font-black tracking-widest text-[10px]">New Scan</button>
                     </div>
                 </div>
 
@@ -306,6 +318,24 @@
         const filterMinClose = document.getElementById('filter-min-close');
 
         let allResults = [];
+        let skippedRows = [];
+        const errorBanner = document.getElementById('error-banner');
+        const skippedBadge = document.getElementById('skipped-badge');
+
+        function showError(msg) {
+            progressCard.classList.add('hidden');
+            uploadCard.classList.remove('hidden');
+            errorBanner.textContent = msg;
+            errorBanner.classList.add('visible');
+            try { PapaUI.showToast(msg, 'error'); } catch (_) {}
+            progressBar.style.width = '0%';
+            progressText.innerText = '0%';
+        }
+
+        function clearError() {
+            errorBanner.classList.remove('visible');
+            errorBanner.textContent = '';
+        }
 
         dropZone.onclick = () => fileInput.click();
         dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('active'); };
@@ -322,20 +352,51 @@
             if (file) handleFile(file);
         };
 
+        document.getElementById('use-sample-btn').onclick = async () => {
+            const res = await fetch('/sample.csv');
+            const blob = await res.blob();
+            handleFile(new File([blob], 'sample_signals.csv', { type: 'text/csv' }));
+        };
+        document.getElementById('export-csv-btn').onclick = () => PapaUI.exportCsv(allResults, 'days_backtest_results.csv');
+        document.getElementById('refresh-btn').onclick = () => {
+            dashboardSection.classList.add('hidden');
+            uploadCard.classList.remove('hidden');
+            allResults = [];
+            skippedRows = [];
+            fileInput.value = '';
+            clearError();
+        };
+
         async function handleFile(file) {
-            const daysCount = daysInput.value || 5;
+            const daysCount = parseInt(daysInput.value, 10);
+            if (!Number.isFinite(daysCount) || daysCount < 1 || daysCount > 60) {
+                showError('Days must be an integer between 1 and 60');
+                return;
+            }
+
+            clearError();
             uploadCard.classList.add('hidden');
+            dashboardSection.classList.add('hidden');
             progressCard.classList.remove('hidden');
 
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                // Pass days as query parameter
                 const response = await fetch(`/scan_days?days=${daysCount}`, {
                     method: 'POST',
                     body: formData
                 });
+
+                if (!response.ok || !response.body) {
+                    let msg = 'Scan failed (HTTP ' + response.status + ')';
+                    try {
+                        const j = await response.json();
+                        if (j.message) msg = j.message;
+                    } catch (_) {}
+                    showError(msg);
+                    return;
+                }
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -362,23 +423,28 @@
 
                             if (data.type === 'complete') {
                                 setTimeout(() => {
-                                    allResults = data.results;
+                                    allResults = data.results || [];
+                                    skippedRows = data.skipped || [];
                                     progressCard.classList.add('hidden');
                                     dashboardSection.classList.remove('hidden');
+                                    if (skippedRows.length) {
+                                        skippedBadge.classList.remove('hidden');
+                                        skippedBadge.innerText = `${skippedRows.length} SKIPPED`;
+                                    } else {
+                                        skippedBadge.classList.add('hidden');
+                                    }
                                     filterAndRender();
-                                }, 500);
+                                }, 200);
                             }
 
                             if (data.type === 'error') {
-                                alert('Error: ' + data.message);
-                                location.reload();
+                                showError('Error: ' + data.message);
                             }
                         }
                     }
                 }
             } catch (error) {
-                alert('Connection error: ' + error.message);
-                location.reload();
+                showError('Connection error: ' + error.message);
             }
         }
 

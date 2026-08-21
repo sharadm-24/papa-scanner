@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from market_session import yf_download, yf_ticker
 from yf_fixture import fixture_download, fixture_ticker
 
 logging.getLogger("yfinance").setLevel(logging.CRITICAL)
@@ -103,7 +104,7 @@ async def process_row(row, current_time, cache, skipped):
 
         if cache_key not in cache:
             df_raw = await asyncio.to_thread(
-                yf.download,
+                yf_download,
                 ticker,
                 start=start_str,
                 end=end_str,
@@ -115,7 +116,7 @@ async def process_row(row, current_time, cache, skipped):
             if df_raw.empty and not YF_FIXTURE_MODE:
                 await asyncio.sleep(0.5)
                 df_raw = await asyncio.to_thread(
-                    yf.download,
+                    yf_download,
                     ticker,
                     start=start_str,
                     end=end_str,
@@ -193,7 +194,7 @@ async def process_row_days(row, current_time, cache, days_count, skipped):
 
         if cache_key not in cache:
             df_raw = await asyncio.to_thread(
-                yf.download,
+                yf_download,
                 ticker,
                 start=start_str,
                 end=end_str,
@@ -205,7 +206,7 @@ async def process_row_days(row, current_time, cache, days_count, skipped):
             if df_raw.empty and not YF_FIXTURE_MODE:
                 await asyncio.sleep(0.5)
                 df_raw = await asyncio.to_thread(
-                    yf.download,
+                    yf_download,
                     ticker,
                     start=start_str,
                     end=end_str,
@@ -448,7 +449,7 @@ async def get_ticker_data():
 
     async def fetch_ticker(symbol, name):
         try:
-            tkr = yf.Ticker(symbol)
+            tkr = yf_ticker(symbol)
             hist = await asyncio.to_thread(tkr.history, period="5d")
             if hist.empty or len(hist) < 2:
                 return None
@@ -465,7 +466,13 @@ async def get_ticker_data():
         *[fetch_ticker(sym, name) for sym, name in tickers.items()]
     )
     results = [item for item in fetched_data if item is not None]
-    return {"data": results}
+    payload = {"data": results}
+    if not results:
+        payload["error"] = (
+            "Yahoo Finance returned no symbols. "
+            "The provider may be rate-limiting this host; retry shortly."
+        )
+    return payload
 
 
 @app.get("/index_data")
@@ -481,7 +488,7 @@ async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
             start_date -= timedelta(weeks=1)
 
         df = await asyncio.to_thread(
-            yf.download,
+            yf_download,
             ticker,
             start=start_date.strftime("%Y-%m-%d"),
             end=(end_date + timedelta(days=1)).strftime("%Y-%m-%d"),
@@ -491,7 +498,12 @@ async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
             group_by="ticker",
         )
         if df.empty:
-            return {"error": "No data found for the selected index and period."}
+            return {
+                "error": (
+                    "No data found for the selected index and period. "
+                    "Yahoo may be rate-limiting this host; retry shortly."
+                )
+            }
 
         if isinstance(df.columns, pd.MultiIndex):
             if ticker in df.columns.levels[0]:
@@ -581,13 +593,14 @@ async def get_all_indices_data(
         start_str = start_date.strftime("%Y-%m-%d")
         end_str = (end_date + timedelta(days=1)).strftime("%Y-%m-%d")
         freq = "ME" if interval == "1mo" else "W-MON"
-        sem = asyncio.Semaphore(1 if not YF_FIXTURE_MODE else 8)
+        # curl_cffi session is safer than plain requests; allow modest concurrency.
+        sem = asyncio.Semaphore(3 if not YF_FIXTURE_MODE else 8)
 
         async def fetch_one(ticker, name):
             async with sem:
                 try:
                     df = await asyncio.to_thread(
-                        yf.download,
+                        yf_download,
                         tickers=ticker,
                         start=start_str,
                         end=end_str,

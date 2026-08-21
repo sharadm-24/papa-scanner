@@ -54,7 +54,7 @@ def fixture_download(
 
 
 class FixtureTicker:
-    def __init__(self, symbol: str):
+    def __init__(self, symbol: str, session=None, **kwargs):
         self.symbol = symbol
 
     def history(self, period: str = "5d", **kwargs):
@@ -63,5 +63,5 @@ class FixtureTicker:
         return _frame_from_rows(rows)
 
 
-def fixture_ticker(symbol: str) -> FixtureTicker:
-    return FixtureTicker(symbol)
+def fixture_ticker(symbol: str, session=None, **kwargs) -> FixtureTicker:
+    return FixtureTicker(symbol, session=session, **kwargs)

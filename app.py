@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from market_session import yf_download, yf_ticker
+from market_session import download_ohlc, history_ohlc, yf_download, yf_ticker
 from yf_fixture import fixture_download, fixture_ticker
 
 logging.getLogger("yfinance").setLevel(logging.CRITICAL)
@@ -431,41 +431,46 @@ async def scan_days(request: Request, file: UploadFile = File(...)):
 
 @app.get("/api/ticker_data")
 async def get_ticker_data():
-    tickers = {
-        "^NSEI": "NIFTY 50",
-        "^NSEBANK": "NIFTY BANK",
-        "^CNXPHARMA": "NIFTY PHARMA",
-        "^CNXREALTY": "NIFTY REALTY",
-        "^CNXCONSUM": "NIFTY CONSUM",
-        "^CNXMETAL": "NIFTY METAL",
-        "^CNXAUTO": "NIFTY AUTO",
-        "^CNXIT": "NIFTY IT",
-        "^CNXINFRA": "NIFTY INFRA",
-        "^CNXFMCG": "NIFTY FMCG",
-        "NIFTY_MID_SELECT.NS": "NIFTY MID SEL",
-        "NIFTY_PVT_BANK.NS": "NIFTY PVT BANK",
-        "^VIX": "INDIA VIX",
-    }
+    # (primary symbol, display name, optional fallbacks)
+    tickers = [
+        ("^NSEI", "NIFTY 50", ()),
+        ("^NSEBANK", "NIFTY BANK", ()),
+        ("^CNXPHARMA", "NIFTY PHARMA", ()),
+        ("^CNXREALTY", "NIFTY REALTY", ()),
+        ("^CNXCONSUM", "NIFTY CONSUM", ()),
+        ("^CNXMETAL", "NIFTY METAL", ()),
+        ("^CNXAUTO", "NIFTY AUTO", ()),
+        ("^CNXIT", "NIFTY IT", ()),
+        ("^CNXINFRA", "NIFTY INFRA", ()),
+        ("^CNXFMCG", "NIFTY FMCG", ()),
+        ("NIFTY_MID_SELECT.NS", "NIFTY MID SEL", ("^NSEMDCP50",)),
+        ("NIFTY_PVT_BANK.NS", "NIFTY PVT BANK", ()),
+        ("^VIX", "INDIA VIX", ()),
+    ]
 
-    async def fetch_ticker(symbol, name):
+    async def fetch_ticker(primary, name, fallbacks):
         try:
-            tkr = yf_ticker(symbol)
-            hist = await asyncio.to_thread(tkr.history, period="5d")
-            if hist.empty or len(hist) < 2:
-                return None
-            prev_close = hist["Close"].iloc[-2]
-            current_close = hist["Close"].iloc[-1]
-            if prev_close == 0:
-                return None
-            pct_change = ((current_close - prev_close) / prev_close) * 100
-            return {"name": name, "change": round(pct_change, 2)}
+            for symbol in (primary, *fallbacks):
+                hist = await asyncio.to_thread(history_ohlc, symbol, "5d", 3)
+                if hist.empty or len(hist) < 2:
+                    continue
+                prev_close = float(hist["Close"].iloc[-2])
+                current_close = float(hist["Close"].iloc[-1])
+                if prev_close == 0:
+                    continue
+                pct_change = ((current_close - prev_close) / prev_close) * 100
+                return {"name": name, "change": round(pct_change, 2)}
+            return None
         except Exception:
             return None
 
-    fetched_data = await asyncio.gather(
-        *[fetch_ticker(sym, name) for sym, name in tickers.items()]
-    )
-    results = [item for item in fetched_data if item is not None]
+    # Serial on live hosts — concurrent Yahoo hits from Vercel drop sector indices.
+    results = []
+    for primary, name, fallbacks in tickers:
+        item = await fetch_ticker(primary, name, fallbacks)
+        if item:
+            results.append(item)
+
     payload = {"data": results}
     if not results:
         payload["error"] = (
@@ -488,14 +493,12 @@ async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
             start_date -= timedelta(weeks=1)
 
         df = await asyncio.to_thread(
-            yf_download,
+            download_ohlc,
             ticker,
             start=start_date.strftime("%Y-%m-%d"),
             end=(end_date + timedelta(days=1)).strftime("%Y-%m-%d"),
             interval="1d",
-            progress=False,
-            auto_adjust=False,
-            group_by="ticker",
+            retries=3,
         )
         if df.empty:
             return {
@@ -505,28 +508,20 @@ async def get_index_data(ticker: str, months: int = 3, interval: str = "1mo"):
                 )
             }
 
-        if isinstance(df.columns, pd.MultiIndex):
-            if ticker in df.columns.levels[0]:
-                df = df[ticker].copy()
-            else:
-                df.columns = df.columns.get_level_values(1)
-
-        df = df.dropna()
-        if not df.empty:
-            freq = "ME" if interval == "1mo" else "W-MON"
-            try:
-                df = (
-                    df.resample(freq)
-                    .agg({"Open": "first", "High": "max", "Low": "min", "Close": "last"})
-                    .dropna()
-                )
-            except ValueError:
-                fallback_freq = "M" if interval == "1mo" else "W-MON"
-                df = (
-                    df.resample(fallback_freq)
-                    .agg({"Open": "first", "High": "max", "Low": "min", "Close": "last"})
-                    .dropna()
-                )
+        freq = "ME" if interval == "1mo" else "W-MON"
+        try:
+            df = (
+                df.resample(freq)
+                .agg({"Open": "first", "High": "max", "Low": "min", "Close": "last"})
+                .dropna()
+            )
+        except ValueError:
+            fallback_freq = "M" if interval == "1mo" else "W-MON"
+            df = (
+                df.resample(fallback_freq)
+                .agg({"Open": "first", "High": "max", "Low": "min", "Close": "last"})
+                .dropna()
+            )
 
         results = []
         for timestamp, row in df.iterrows():
@@ -568,21 +563,23 @@ async def get_all_indices_data(
     if interval not in ("1mo", "1wk"):
         return {"error": "interval must be 1mo or 1wk"}
 
-    tickers = {
-        "^NSEI": "Nifty 50",
-        "^NSEBANK": "Nifty Bank",
-        "NIFTY_PVT_BANK.NS": "Nifty Pvt Bank",
-        "^CNXPHARMA": "Nifty Pharma",
-        "^CNXREALTY": "Nifty Realty",
-        "^CNXCONSUM": "Nifty Consumption",
-        "^CNXMETAL": "Nifty Metal",
-        "^CNXAUTO": "Nifty Auto",
-        "^CNXIT": "Nifty IT",
-        "^CNXINFRA": "Nifty Infra",
-        "^CNXFMCG": "Nifty FMCG",
-        "NIFTY_MID_SELECT.NS": "Nifty Mid Select",
-        "^VIX": "India VIX",
-    }
+    # primary + optional Yahoo fallbacks (sector indices flake on Vercel)
+    tickers = [
+        (("^NSEI",), "Nifty 50"),
+        (("^NSEBANK",), "Nifty Bank"),
+        (("NIFTY_PVT_BANK.NS",), "Nifty Pvt Bank"),
+        (("^CNXPHARMA",), "Nifty Pharma"),
+        (("^CNXREALTY",), "Nifty Realty"),
+        (("^CNXCONSUM",), "Nifty Consumption"),
+        (("^CNXMETAL",), "Nifty Metal"),
+        (("^CNXAUTO",), "Nifty Auto"),
+        (("^CNXIT",), "Nifty IT"),
+        (("^CNXINFRA",), "Nifty Infra"),
+        (("^CNXFMCG",), "Nifty FMCG"),
+        # Mid Select has almost no Yahoo history; Midcap 50 is the usable proxy.
+        (("NIFTY_MID_SELECT.NS", "^NSEMDCP50"), "Nifty Mid Select"),
+        (("^VIX",), "India VIX"),
+    ]
 
     try:
         end_date = datetime.now()
@@ -593,111 +590,123 @@ async def get_all_indices_data(
         start_str = start_date.strftime("%Y-%m-%d")
         end_str = (end_date + timedelta(days=1)).strftime("%Y-%m-%d")
         freq = "ME" if interval == "1mo" else "W-MON"
-        # curl_cffi session is safer than plain requests; allow modest concurrency.
-        sem = asyncio.Semaphore(3 if not YF_FIXTURE_MODE else 8)
+        # Serial on live hosts; fixture mode can fan out.
+        sem = asyncio.Semaphore(8 if YF_FIXTURE_MODE else 1)
 
-        async def fetch_one(ticker, name):
+        async def fetch_one(symbols, name):
             async with sem:
                 try:
-                    df = await asyncio.to_thread(
-                        yf_download,
-                        tickers=ticker,
-                        start=start_str,
-                        end=end_str,
-                        interval="1d",
-                        progress=False,
-                        auto_adjust=False,
-                        timeout=20,
-                    )
-                    if df.empty:
-                        return {"name": name, "results": []}
+                    last_status = {
+                        "name": name,
+                        "results": [],
+                        "status": "no_yahoo_data",
+                        "message": "Yahoo returned no OHLC for this index",
+                    }
+                    for ticker in symbols:
+                        df = await asyncio.to_thread(
+                            download_ohlc,
+                            ticker,
+                            start=start_str,
+                            end=end_str,
+                            interval="1d",
+                            retries=3 if not YF_FIXTURE_MODE else 1,
+                            pause_sec=0.9,
+                        )
+                        if df.empty:
+                            continue
 
-                    if isinstance(df.columns, pd.MultiIndex):
                         try:
-                            df = df.xs(ticker, level=1, axis=1)
-                        except KeyError:
-                            try:
-                                df = df.xs(ticker, level=0, axis=1)
-                            except KeyError:
-                                return {"name": name, "results": []}
+                            df_r = (
+                                df.resample(freq)
+                                .agg(
+                                    {
+                                        "Open": "first",
+                                        "High": "max",
+                                        "Low": "min",
+                                        "Close": "last",
+                                    }
+                                )
+                                .dropna()
+                            )
+                        except ValueError:
+                            fallback = "M" if interval == "1mo" else "W-MON"
+                            df_r = (
+                                df.resample(fallback)
+                                .agg(
+                                    {
+                                        "Open": "first",
+                                        "High": "max",
+                                        "Low": "min",
+                                        "Close": "last",
+                                    }
+                                )
+                                .dropna()
+                            )
+                        df_r["Prev_Close"] = df_r["Close"].shift(1)
 
-                    missing = [c for c in ["Open", "High", "Low", "Close"] if c not in df.columns]
-                    if missing:
-                        return {"name": name, "results": []}
-
-                    df = df[["Open", "High", "Low", "Close"]].dropna()
-                    if df.empty:
-                        return {"name": name, "results": []}
-
-                    try:
-                        df_r = (
-                            df.resample(freq)
-                            .agg(
+                        results = []
+                        for ts, row in df_r.iterrows():
+                            if pd.isna(row["Prev_Close"]):
+                                continue
+                            m_open = float(row["Open"])
+                            m_close = float(row["Close"])
+                            p_close = float(row["Prev_Close"])
+                            if p_close == 0:
+                                continue
+                            label = (
+                                ts.strftime("%b %Y")
+                                if interval == "1mo"
+                                else f"W{ts.isocalendar()[1]}"
+                            )
+                            results.append(
                                 {
-                                    "Open": "first",
-                                    "High": "max",
-                                    "Low": "min",
-                                    "Close": "last",
+                                    "period": label,
+                                    "open": round(m_open, 2),
+                                    "close": round(m_close, 2),
+                                    "p_close": round(
+                                        float((m_close - p_close) / p_close * 100), 2
+                                    ),
                                 }
                             )
-                            .dropna()
-                        )
-                    except ValueError:
-                        fallback = "M" if interval == "1mo" else "W-MON"
-                        df_r = (
-                            df.resample(fallback)
-                            .agg(
-                                {
-                                    "Open": "first",
-                                    "High": "max",
-                                    "Low": "min",
-                                    "Close": "last",
-                                }
-                            )
-                            .dropna()
-                        )
-                    df_r["Prev_Close"] = df_r["Close"].shift(1)
-
-                    results = []
-                    for ts, row in df_r.iterrows():
-                        if pd.isna(row["Prev_Close"]):
-                            continue
-                        m_open = float(row["Open"])
-                        m_close = float(row["Close"])
-                        p_close = float(row["Prev_Close"])
-                        if p_close == 0:
-                            continue
-                        label = (
-                            ts.strftime("%b %Y")
-                            if interval == "1mo"
-                            else f"W{ts.isocalendar()[1]}"
-                        )
-                        results.append(
-                            {
-                                "period": label,
-                                "open": round(m_open, 2),
-                                "close": round(m_close, 2),
-                                "p_close": round(
-                                    float((m_close - p_close) / p_close * 100), 2
-                                ),
+                        if results:
+                            return {
+                                "name": name,
+                                "results": results,
+                                "status": "ok",
+                                "ticker": ticker,
                             }
-                        )
-                    return {"name": name, "results": results}
-                except Exception:
-                    return {"name": name, "results": []}
+                        last_status = {
+                            "name": name,
+                            "results": [],
+                            "status": "insufficient_history",
+                            "ticker": ticker,
+                            "message": "Not enough history to build period returns",
+                        }
+                    return last_status
+                except Exception as ex:
+                    return {
+                        "name": name,
+                        "results": [],
+                        "status": "error",
+                        "message": f"{type(ex).__name__}: {ex}",
+                    }
 
         results_list = list(
-            await asyncio.gather(*[fetch_one(t, n) for t, n in tickers.items()])
+            await asyncio.gather(*[fetch_one(syms, n) for syms, n in tickers])
         )
         all_periods = []
         for res in results_list:
             for r in res["results"]:
                 if r["period"] not in all_periods:
                     all_periods.append(r["period"])
-        return {"periods": all_periods, "indices": results_list}
+        empty = [r["name"] for r in results_list if not r["results"]]
+        payload = {"periods": all_periods, "indices": results_list}
+        if empty:
+            payload["partial"] = True
+            payload["empty_indices"] = empty
+        return payload
     except Exception as e:
         return {"error": str(e)}
-
 
 if __name__ == "__main__":
     import uvicorn

@@ -326,6 +326,10 @@
                 }
 
                 renderTable(data);
+                if (data.partial && data.empty_indices && data.empty_indices.length) {
+                    const missing = data.empty_indices.join(', ');
+                    PapaUI.showToast('No Yahoo data for: ' + missing, 'error');
+                }
             } catch (error) {
                 showError("Failed to fetch data: " + error.message);
             } finally {
@@ -359,7 +363,8 @@
 
             // Render Body
             tableBody.innerHTML = data.indices.map(index => {
-                let rowHtml = `<tr><td class="index-name-col">${index.name}</td>`;
+                const hasAny = (index.results || []).length > 0;
+                let rowHtml = `<tr><td class="index-name-col">${index.name}${!hasAny && index.message ? `<div style="font-size:10px;color:#f59e0b;font-weight:600;margin-top:4px;">${index.message}</div>` : ''}</td>`;
                 
                 data.periods.forEach(p => {
                     const res = index.results.find(r => r.period === p);
@@ -377,7 +382,7 @@
                             </td>
                         `;
                     } else {
-                        rowHtml += `<td style="text-align:center; color:#374151; font-weight:bold;">–</td>`;
+                        rowHtml += `<td style="text-align:center; color:#374151; font-weight:bold;" title="${!hasAny ? (index.message || 'No Yahoo data') : 'No data for this period'}">–</td>`;
                     }
                 });
                 

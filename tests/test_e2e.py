@@ -149,17 +149,19 @@ def test_e2e_3day_01_scan_and_filters(page: Page):
     # Default: RSI filter on, "crosses above 58", previous candle included -> TCS only.
     expect(rows).to_have_count(1)
     expect(rows.first).to_contain_text("TCS")
-    expect(page.locator("#stat-total")).to_have_text("4")
+    expect(page.locator("#stat-total")).to_have_text("3")
     expect(page.locator("#chart .main-svg").first).to_be_visible()
 
     page.select_option("#rsi-mode", "above")
-    expect(rows).to_have_count(3)
+    expect(rows).to_have_count(2)
+    expect(page.locator("#results-body")).not_to_contain_text("HDFCBANK")  # RSI below 58
     page.click("label[for=rsi-on] .knob")
     expect(page.locator("#rsi-on")).not_to_be_checked()
-    expect(rows).to_have_count(4)
+    expect(rows).to_have_count(3)
+    expect(page.locator("#results-body")).not_to_contain_text("INFY")  # repeat breakout, hidden
     expect(page.locator("#rsi-mode")).to_be_disabled()
     page.check("#fno-on")
-    expect(rows).to_have_count(3)
+    expect(rows).to_have_count(2)
     expect(page.locator("#results-body")).not_to_contain_text("HDFCBANK")
     page.uncheck("#prev-on")
     expect(rows).to_have_count(2)

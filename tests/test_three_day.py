@@ -52,6 +52,28 @@ def test_find_signals_needs_close_above_high_and_close():
     assert sig.tolist() == [False, False, False, True, True, False]
 
 
+def test_find_breakdowns_mirror_rule():
+    c = pd.DataFrame({
+        "Low":   [10, 8, 9, 7, 6.5, 6],
+        "Close": [11, 9, 10, 7.9, 6.9, 8],
+    })
+    # i=3: 7.9 < min Low(10, 8, 9)=8 and < min Close 9 -> breakdown
+    # i=4: 6.9 < min Low(8, 9, 7)=7 and < min Close 7.9 -> breakdown
+    # i=5: 8 is not below 6.5 -> no
+    assert three_day.find_breakdowns(c).tolist() == [False, False, False, True, True, False]
+    c2 = pd.DataFrame({"Low": [10, 10, 10, 9], "Close": [11, 11, 11, 10.0]})
+    assert not three_day.find_breakdowns(c2).iloc[-1]  # closing at the prior low is not a breakdown
+
+
+def test_first_signals_one_per_up_move():
+    # Sharad's example: breakouts on candles 2, 3, 4, breakdown on 6, breakouts on 9, 10.
+    brk = pd.Series([False, True, True, True, False, False, False, False, True, True], index=range(1, 11))
+    bdn = pd.Series([False, False, False, False, False, True, False, False, False, False], index=range(1, 11))
+    first = three_day.first_signals(brk, bdn)
+    assert list(first[first].index) == [2, 9]
+    assert list(first.index) == list(brk.index)
+
+
 def test_find_signals_is_strict():
     c = pd.DataFrame({"High": [10, 10, 10, 10.5], "Close": [9, 9, 9, 10.0]})
     assert not three_day.find_signals(c).iloc[-1]  # closing at the prior high is not a breakout
@@ -84,13 +106,25 @@ def test_scan_fixture_rows_are_json_clean():
         assert r["symbol"] in result["charts"]
     latest = [r for r in result["rows"] if r["bars_ago"] == 0]
     assert all(r["candle_end"] == result["asof"] for r in latest)
-    # One case per fixture symbol (see three_day.FIXTURE_PATH comment); INFY has none.
+    # One case per fixture symbol (see three_day.FIXTURE_PATH comment).
     by_key = {(r["symbol"], r["bars_ago"]): r for r in result["rows"]}
-    assert set(by_key) == {("TCS", 0), ("RELIANCE", 0), ("HDFCBANK", 1), ("TCS", 1)}
+    assert set(by_key) == {("TCS", 0), ("RELIANCE", 0), ("HDFCBANK", 1)}
     assert by_key[("TCS", 0)]["rsi_cross"]
     assert by_key[("RELIANCE", 0)]["rsi_above"] and not by_key[("RELIANCE", 0)]["rsi_cross"]
     assert not by_key[("HDFCBANK", 1)]["fno"] and by_key[("HDFCBANK", 1)]["lot"] is None
-    assert not by_key[("TCS", 1)]["rsi_above"]
+    assert not by_key[("HDFCBANK", 1)]["rsi_above"]  # keeps the "RSI is above 58" filter testable
+    # RELIANCE's chart shows the breakdown that re-armed its latest signal.
+    assert result["charts"]["RELIANCE"]["breakdowns"]
+
+
+def test_scan_hides_repeat_breakouts():
+    # INFY's latest candle is a breakout, but its up-move began long ago with no breakdown since.
+    df = three_day._fixture_frames(["INFY.NS"])["INFY.NS"]
+    c = three_day.three_day_candles(df)
+    brk, bdn = three_day.find_signals(c), three_day.find_breakdowns(c)
+    assert brk.iloc[-1] and brk.iloc[-2]
+    assert not three_day.first_signals(brk, bdn).iloc[-2:].any()
+    assert all(r["symbol"] != "INFY" for r in three_day.scan("nifty50")["rows"])
 
 
 @pytest.fixture

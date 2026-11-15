@@ -3,6 +3,9 @@
 Daily bars are grouped into non-overlapping 3-trading-day candles, counted back so
 the newest candle ends on the latest trading day. A candle is a breakout when it
 CLOSES above both the highest High and the highest Close of the previous 3 candles.
+Only the FIRST breakout of an up-move is a signal: after a signal, later breakouts are
+repeats until a breakdown (a candle closing below the lowest Low and lowest Close of the
+previous 3 candles) shows the trend turned down; the next breakout after that is new.
 
 Each breakout also carries RSI(14, Wilder, on 3-day closes) and the NSE F&O lot
 size, so the page can filter on "RSI crosses above 58", "RSI is above 58" and
@@ -39,8 +42,9 @@ FNO_URLS = [
 DELISTED = {"DUMMYHEG.NS", "BAGMANE.NS"}
 
 # Fixture mode (tests / CI): no NSE or Yahoo calls. The fixture holds one case each:
-# RELIANCE latest breakout with RSI above 58, TCS latest breakout with RSI crossing 58,
-# HDFCBANK previous-candle breakout (not F&O), INFY no breakout.
+# RELIANCE latest first signal (after a breakdown) with RSI above 58, TCS latest first signal
+# with RSI crossing 58, HDFCBANK previous-candle first signal with RSI below 58 (not F&O),
+# INFY breakouts on the latest candles that are repeats of an old up-move (hidden).
 FIXTURE_PATH = Path(__file__).resolve().parent / "tests" / "fixtures" / "three_day_ohlc.json"
 FIXTURE_UNIVERSE = {
     "RELIANCE.NS": "Reliance Industries Ltd.",
@@ -190,6 +194,25 @@ def find_signals(c: pd.DataFrame) -> pd.Series:
     return (c["Close"] > prev_high) & (c["Close"] > prev_close)
 
 
+def find_breakdowns(c: pd.DataFrame) -> pd.Series:
+    """Boolean Series: candle i closes below min Low and min Close of candles i-3..i-1."""
+    prev_low = c["Low"].shift(1).rolling(3).min()
+    prev_close = c["Close"].shift(1).rolling(3).min()
+    return (c["Close"] < prev_low) & (c["Close"] < prev_close)
+
+
+def first_signals(brk: pd.Series, bdn: pd.Series) -> pd.Series:
+    """Keep only the first breakout after each breakdown (and the first in history)."""
+    armed, out = True, []
+    for b, d in zip(brk.tolist(), bdn.tolist()):
+        out.append(bool(b and armed))
+        if b:
+            armed = False
+        if d:
+            armed = True
+    return pd.Series(out, index=brk.index)
+
+
 def wilder_rsi(close: pd.Series, n: int = 14) -> pd.Series:
     d = close.diff()
     up = d.clip(lower=0).ewm(alpha=1 / n, adjust=False, min_periods=n).mean()
@@ -202,7 +225,7 @@ def _num(v, nd=2):
 
 
 def scan(universe: str = "nifty50", years: int = 3) -> dict:
-    """Run the scan. Returns JSON-ready rows (latest + previous candle breakouts) and charts."""
+    """Run the scan. Returns JSON-ready rows (first signals on the latest + previous candle) and charts."""
     names = load_universe(universe)
     tickers = list(names)
     fno = load_fno()
@@ -225,13 +248,14 @@ def scan(universe: str = "nifty50", years: int = 3) -> dict:
         if c["end"].iloc[-1] != latest:  # stale / suspended symbol
             continue
         c["rsi"] = wilder_rsi(c["Close"])
-        brk = find_signals(c)
+        bdn = find_breakdowns(c)
+        sig = first_signals(find_signals(c), bdn)
         sym = t.removesuffix(".NS")
         last = len(c) - 1
         found = False
         for bars_ago in (0, 1):
             i = last - bars_ago
-            if i < 3 or not brk.iloc[i]:
+            if i < 3 or not sig.iloc[i]:
                 continue
             found = True
             entry, sl = float(c.loc[i, "Close"]), float(c.loc[i, "Low"])
@@ -266,7 +290,8 @@ def scan(universe: str = "nifty50", years: int = 3) -> dict:
                 "high": tail["High"].round(2).tolist(),
                 "low": tail["Low"].round(2).tolist(),
                 "close": tail["Close"].round(2).tolist(),
-                "signals": [f"{e:%Y-%m-%d}" for e, s in zip(tail["end"], brk.loc[tail.index]) if s],
+                "signals": [f"{e:%Y-%m-%d}" for e, s in zip(tail["end"], sig.loc[tail.index]) if s],
+                "breakdowns": [f"{e:%Y-%m-%d}" for e, s in zip(tail["end"], bdn.loc[tail.index]) if s],
             }
 
     rows.sort(key=lambda r: (r["bars_ago"], -r["breakout_pct"]))

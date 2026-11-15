@@ -164,7 +164,15 @@
                     <option value="cross">RSI crosses above 58</option>
                     <option value="above">RSI is above 58</option>
                 </select>
-                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="prev-on" class="accent-cyan-400" checked> Include previous candle</label>
+                <label class="flex items-center gap-2 text-sm">Signal within last
+                    <select id="lookback" class="rounded-lg px-2 py-1 text-sm" aria-label="Lookback candles">
+                        <option value="1">1 candle</option>
+                        <option value="2" selected>2 candles</option>
+                        <option value="3">3 candles</option>
+                        <option value="4">4 candles</option>
+                        <option value="5">5 candles</option>
+                    </select>
+                </label>
                 <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="fno-on" class="accent-cyan-400"> F&amp;O stocks only</label>
                 <input id="filter-symbol" type="search" placeholder="Filter symbol…" class="rounded-lg px-3 py-2 text-sm bg-white/5 border border-white/10 text-white w-40 focus:outline-none focus:border-cyan-400">
                 <button id="export-csv-btn" type="button" class="ml-auto text-xs font-bold uppercase tracking-widest border border-white/15 px-4 py-2 rounded-lg hover:bg-white/5">Export CSV</button>
@@ -172,7 +180,7 @@
 
             <div class="flex flex-wrap gap-3 mb-6 text-sm">
                 <div class="stat-pill"><div class="text-[10px] uppercase tracking-widest text-gray-500">Showing</div><div id="stat-shown" class="font-bold text-white text-lg">0</div></div>
-                <div class="stat-pill"><div class="text-[10px] uppercase tracking-widest text-gray-500">All breakouts</div><div id="stat-total" class="font-bold text-white text-lg">0</div></div>
+                <div class="stat-pill"><div class="text-[10px] uppercase tracking-widest text-gray-500">Signals, last 5 candles</div><div id="stat-total" class="font-bold text-white text-lg">0</div></div>
                 <div class="stat-pill"><div class="text-[10px] uppercase tracking-widest text-gray-500">Data as of</div><div id="stat-asof" class="font-bold text-white text-lg">–</div></div>
                 <div class="stat-pill"><div class="text-[10px] uppercase tracking-widest text-gray-500">Symbols scanned</div><div id="stat-symbols" class="font-bold text-white text-lg">–</div></div>
                 <div id="scan-meta" class="self-center text-xs text-gray-500"></div>
@@ -210,6 +218,7 @@
         const $ = id => document.getElementById(id);
         const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+        const whenLabel = n => n === 0 ? 'latest candle' : n === 1 ? 'previous candle' : `${n} candles ago`;
         const fmtShort = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
         function showError(msg) {
@@ -254,12 +263,12 @@
         function render() {
             if (!scan) return;
             const on = $('rsi-on').checked, mode = $('rsi-mode').value;
-            const prev = $('prev-on').checked, fno = $('fno-on').checked;
+            const lookback = Number($('lookback').value), fno = $('fno-on').checked;
             const q = $('filter-symbol').value.trim().toUpperCase();
             $('rsi-mode').disabled = !on;
             $('rsi-state').textContent = on ? 'ON' : 'OFF';
             shown = scan.rows.filter(r =>
-                (prev || r.bars_ago === 0) &&
+                r.bars_ago < lookback &&
                 (!fno || r.fno) &&
                 (!on || (mode === 'cross' ? r.rsi_cross : r.rsi_above)) &&
                 (!q || r.symbol.includes(q)));
@@ -275,7 +284,7 @@
                 const tr = document.createElement('tr');
                 const rsi = r.rsi == null ? '–' : `${r.rsi_prev ?? '–'} → ${r.rsi}`;
                 tr.innerHTML = `<td class="font-bold text-white">${esc(r.symbol)}</td><td class="text-gray-400">${esc(r.name)}</td>` +
-                    `<td><span class="pill ${r.bars_ago === 0 ? 'new' : ''}">${r.bars_ago === 0 ? 'latest candle' : 'previous candle'}</span></td>` +
+                    `<td><span class="pill ${r.bars_ago === 0 ? 'new' : ''}">${whenLabel(r.bars_ago)}</span></td>` +
                     `<td class="text-gray-400">${fmtShort(r.candle_start)} – ${fmtDate(r.candle_end)}</td>` +
                     `<td>${r.close}</td><td class="text-rose-300">${r.sl}</td><td class="text-emerald-300">${r.target}</td>` +
                     `<td>${r.risk_pct}</td><td class="text-cyan-300">${r.breakout_pct}</td><td>${rsi}</td><td>${r.lot ?? '–'}</td>`;
@@ -320,7 +329,7 @@
 
         function exportRows() {
             const rows = shown.map(r => ({
-                symbol: r.symbol, name: r.name, when: r.bars_ago === 0 ? 'latest' : 'previous',
+                symbol: r.symbol, name: r.name, when: whenLabel(r.bars_ago), candles_ago: r.bars_ago,
                 candle_start: r.candle_start, candle_end: r.candle_end, close: r.close, sl: r.sl, target_1to2: r.target,
                 risk_pct: r.risk_pct, breakout_pct: r.breakout_pct, rsi_prev: r.rsi_prev, rsi: r.rsi,
                 rsi_cross: r.rsi_cross, rsi_above: r.rsi_above, fno: r.fno, lot: r.lot
@@ -329,7 +338,7 @@
         }
 
         $('scan-btn').onclick = runScan;
-        ['rsi-on', 'rsi-mode', 'prev-on', 'fno-on'].forEach(id => $(id).onchange = render);
+        ['rsi-on', 'rsi-mode', 'lookback', 'fno-on'].forEach(id => $(id).onchange = render);
         $('filter-symbol').oninput = render;
         $('export-csv-btn').onclick = exportRows;
     </script>

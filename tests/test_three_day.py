@@ -101,7 +101,7 @@ def test_scan_fixture_rows_are_json_clean():
     assert result["with_data"] == len(three_day.FIXTURE_UNIVERSE)
     assert result["rows"], "fixture data should contain at least one breakout"
     for r in result["rows"]:
-        assert r["bars_ago"] in (0, 1)
+        assert 0 <= r["bars_ago"] < three_day.LOOKBACK_MAX
         assert r["sl"] < r["close"] < r["target"]
         assert r["target"] == pytest.approx(r["close"] + 2 * (r["close"] - r["sl"]), abs=0.02)
         assert r["fno"] == (r["lot"] is not None)
@@ -112,7 +112,7 @@ def test_scan_fixture_rows_are_json_clean():
     assert all(r["candle_end"] == result["asof"] for r in latest)
     # One case per fixture symbol (see three_day.FIXTURE_PATH comment).
     by_key = {(r["symbol"], r["bars_ago"]): r for r in result["rows"]}
-    assert set(by_key) == {("TCS", 0), ("RELIANCE", 0), ("HDFCBANK", 1)}
+    assert set(by_key) == {("TCS", 0), ("RELIANCE", 0), ("HDFCBANK", 1), ("ITC", 3)}
     assert by_key[("TCS", 0)]["rsi_cross"]
     assert by_key[("RELIANCE", 0)]["rsi_above"] and not by_key[("RELIANCE", 0)]["rsi_cross"]
     assert not by_key[("HDFCBANK", 1)]["fno"] and by_key[("HDFCBANK", 1)]["lot"] is None

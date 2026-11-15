@@ -31,6 +31,7 @@ log = logging.getLogger(__name__)
 RSI_LEVEL = 58
 MIN_DAYS = 15
 CHART_CANDLES = 40
+LOOKBACK_MAX = 5  # rows cover first signals on the last N candles; the page filters down
 UNIVERSE_URLS = {
     "nifty50": "https://archives.nseindia.com/content/indices/ind_nifty50list.csv",
     "nifty500": "https://archives.nseindia.com/content/indices/ind_nifty500list.csv",
@@ -45,13 +46,15 @@ DELISTED = {"DUMMYHEG.NS", "BAGMANE.NS"}
 # Fixture mode (tests / CI): no NSE or Yahoo calls. The fixture holds one case each:
 # RELIANCE latest first signal (after a breakdown) with RSI above 58, TCS latest first signal
 # with RSI crossing 58, HDFCBANK previous-candle first signal with RSI below 58 (not F&O),
-# INFY breakouts on the latest candles that are repeats of an old up-move (hidden).
+# INFY breakouts on the latest candles that are repeats of an old up-move (hidden),
+# ITC first signal 3 candles ago (only shown with a lookback of 4+ candles).
 FIXTURE_PATH = Path(__file__).resolve().parent / "tests" / "fixtures" / "three_day_ohlc.json"
 FIXTURE_UNIVERSE = {
     "RELIANCE.NS": "Reliance Industries Ltd.",
     "TCS.NS": "Tata Consultancy Services Ltd.",
     "INFY.NS": "Infosys Ltd.",
     "HDFCBANK.NS": "HDFC Bank Ltd.",
+    "ITC.NS": "ITC Ltd.",
 }
 FIXTURE_FNO = {"RELIANCE": 500, "TCS": 175, "INFY": 400}
 
@@ -226,7 +229,7 @@ def _num(v, nd=2):
 
 
 def scan(universe: str = "nifty50", years: int = 3) -> dict:
-    """Run the scan. Returns JSON-ready rows (first signals on the latest + previous candle) and charts."""
+    """Run the scan. Returns JSON-ready rows (first signals on the last LOOKBACK_MAX candles) and charts."""
     names = load_universe(universe)
     tickers = list(names)
     fno = load_fno()
@@ -254,7 +257,7 @@ def scan(universe: str = "nifty50", years: int = 3) -> dict:
         sym = t.removesuffix(".NS")
         last = len(c) - 1
         found = False
-        for bars_ago in (0, 1):
+        for bars_ago in range(LOOKBACK_MAX):
             i = last - bars_ago
             if i < 3 or not sig.iloc[i]:
                 continue

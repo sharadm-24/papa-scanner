@@ -59,6 +59,7 @@ window.PapaUI = {
       <a href="/backtest" class="block py-2 text-gray-300">Stock Backtest</a>
       <a href="/days" class="block py-2 text-gray-300">Daily Backtest</a>
       <a href="/index_scanner" class="block py-2 text-gray-300">Index Monitor</a>
+      <a href="/three_day" class="block py-2 text-gray-300">3-Day Breakout</a>
     `;
     btn.onclick = () => panel.classList.toggle('hidden');
 

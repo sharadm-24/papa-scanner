@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse, JSO
 from fastapi.staticfiles import StaticFiles
 
 from market_session import download_ohlc, history_ohlc, yf_download, yf_ticker
+import three_day
 from yf_fixture import fixture_download, fixture_ticker
 
 logging.getLogger("yfinance").setLevel(logging.CRITICAL)
@@ -284,6 +285,11 @@ async def get_days_page():
 @app.get("/index_scanner")
 async def get_index_scanner_page():
     return read_html("index_scanner.html")
+
+
+@app.get("/three_day")
+async def get_three_day_page():
+    return read_html("three_day.html")
 
 
 @app.get("/sample.csv")
@@ -747,6 +753,45 @@ async def get_all_indices_data(
         return payload
     except Exception as e:
         return {"error": str(e)}
+
+THREE_DAY_TTL_SEC = int(os.environ.get("THREE_DAY_TTL_SEC", "900"))
+_three_day_cache: dict = {}
+_three_day_lock = asyncio.Lock()
+
+
+@app.get("/three_day_data")
+async def get_three_day_data(
+    universe: str = Query("nifty50"),
+    refresh: bool = Query(False),
+):
+    if universe not in three_day.UNIVERSE_URLS:
+        return JSONResponse(
+            {"error": f"universe must be one of: {', '.join(three_day.UNIVERSE_URLS)}"},
+            status_code=400,
+        )
+    def cached():
+        hit = _three_day_cache.get(universe)
+        if hit and (datetime.now() - hit["at"]).total_seconds() < THREE_DAY_TTL_SEC:
+            return {**hit["data"], "cached": True, "scanned_at": hit["at"].isoformat(timespec="seconds")}
+        return None
+
+    if not refresh and (hit := cached()):
+        return hit
+    # One scan at a time: a Nifty 500 pull is ~500 Yahoo symbols and gets rate-limited.
+    async with _three_day_lock:
+        if not refresh and (hit := cached()):  # filled while we waited
+            return hit
+        now = datetime.now()
+        try:
+            data = await asyncio.to_thread(three_day.scan, universe)
+        except Exception as e:
+            return JSONResponse({"error": f"{type(e).__name__}: {e}"}, status_code=502)
+        data["elapsed_sec"] = round((datetime.now() - now).total_seconds(), 1)
+        # Don't keep a rate-limited partial scan (or one without the F&O list) for the full TTL.
+        if data["fno_loaded"] and data["with_data"] >= 0.9 * data["symbols"]:
+            _three_day_cache[universe] = {"at": now, "data": data}
+        return {**data, "cached": False, "scanned_at": now.isoformat(timespec="seconds")}
+
 
 if __name__ == "__main__":
     import uvicorn

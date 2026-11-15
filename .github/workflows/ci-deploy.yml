@@ -28,7 +28,7 @@ jobs:
           playwright install --with-deps chromium
 
       - name: API contract tests
-        run: pytest tests/test_api.py -q
+        run: pytest tests/test_api.py tests/test_three_day.py -q
 
       - name: Start app
         run: |

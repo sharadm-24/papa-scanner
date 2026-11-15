@@ -44,7 +44,7 @@ async def test_health(client):
 
 @pytest.mark.asyncio
 async def test_home_pages(client):
-    for path in ["/", "/backtest", "/days", "/index_scanner"]:
+    for path in ["/", "/backtest", "/days", "/index_scanner", "/three_day"]:
         r = await client.get(path)
         assert r.status_code == 200
         assert "text/html" in r.headers["content-type"]

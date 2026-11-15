@@ -139,3 +139,40 @@ def test_e2e_export_and_sample(page: Page):
     )
     page.click("#export-csv-btn")
     assert page.evaluate("() => window.__exportOk") is True
+
+
+def test_e2e_3day_01_scan_and_filters(page: Page):
+    page.goto(BASE_URL + "/three_day")
+    page.click("#scan-btn")
+    expect(page.locator("#results-section")).to_be_visible(timeout=60000)
+    rows = page.locator("#results-body tr")
+    # Default: RSI filter on, "crosses above 58", previous candle included -> TCS only.
+    expect(rows).to_have_count(1)
+    expect(rows.first).to_contain_text("TCS")
+    expect(page.locator("#stat-total")).to_have_text("4")
+    expect(page.locator("#chart .main-svg").first).to_be_visible()
+
+    page.select_option("#rsi-mode", "above")
+    expect(rows).to_have_count(3)
+    page.click("label[for=rsi-on] .knob")
+    expect(page.locator("#rsi-on")).not_to_be_checked()
+    expect(rows).to_have_count(4)
+    expect(page.locator("#rsi-mode")).to_be_disabled()
+    page.check("#fno-on")
+    expect(rows).to_have_count(3)
+    expect(page.locator("#results-body")).not_to_contain_text("HDFCBANK")
+    page.uncheck("#prev-on")
+    expect(rows).to_have_count(2)
+    page.fill("#filter-symbol", "REL")
+    expect(rows).to_have_count(1)
+    expect(rows.first).to_contain_text("RELIANCE")
+
+
+def test_e2e_3day_02_nav_and_home_card(page: Page):
+    page.goto(BASE_URL + "/")
+    page.locator("a.dash-card[href='/three_day']").click()
+    expect(page).to_have_url(f"{BASE_URL}/three_day")
+    page.locator("nav.topbar .md\\:flex a[href='/index_scanner']").click()
+    expect(page).to_have_url(f"{BASE_URL}/index_scanner")
+    page.locator("nav.topbar .md\\:flex a[href='/three_day']").click()
+    expect(page).to_have_url(f"{BASE_URL}/three_day")

@@ -40,29 +40,31 @@ def test_candles_need_min_history():
     assert three_day.three_day_candles(daily(range(10))) is None
 
 
-def test_find_signals_needs_close_above_high_and_close():
+def test_find_signals_needs_close_and_high_above_prior_three():
     c = pd.DataFrame({
-        "High":  [10, 12, 11, 13, 14, 15],
-        "Close": [9,  11, 10, 12.5, 13.5, 12],
+        "High":  [10, 12, 11, 12.5, 12.4, 14, 13],
+        "Close": [9,  11, 10, 11.5, 12.2, 11, 12.9],
     })
     sig = three_day.find_signals(c)
-    # i=3: 12.5 > max High(10,12,11)=12 and > max Close 11 -> breakout
-    # i=4: 13.5 > max High(12,11,13)=13 -> breakout
-    # i=5: 12 < 14 -> no
-    assert sig.tolist() == [False, False, False, True, True, False]
+    # i=3: Close 11.5 > max Close 11 and High 12.5 > max High 12 -> breakout,
+    #      even though Close is below the earlier High 12 (Sharad's 2-4 Nov candle)
+    # i=4: Close 12.2 > 11.5 but High 12.4 < 12.5 -> no
+    # i=5: High 14 > 12.5 but Close 11 < 12.2 -> no
+    # i=6: Close 12.9 > 12.2 but High 13 < 14 -> no
+    assert sig.tolist() == [False, False, False, True, False, False, False]
 
 
 def test_find_breakdowns_mirror_rule():
     c = pd.DataFrame({
-        "Low":   [10, 8, 9, 7, 6.5, 6],
-        "Close": [11, 9, 10, 7.9, 6.9, 8],
+        "Low":   [10, 8, 9, 7.5, 7.6, 6],
+        "Close": [11, 9, 10, 8.5, 8.4, 9],
     })
-    # i=3: 7.9 < min Low(10, 8, 9)=8 and < min Close 9 -> breakdown
-    # i=4: 6.9 < min Low(8, 9, 7)=7 and < min Close 7.9 -> breakdown
-    # i=5: 8 is not below 6.5 -> no
-    assert three_day.find_breakdowns(c).tolist() == [False, False, False, True, True, False]
-    c2 = pd.DataFrame({"Low": [10, 10, 10, 9], "Close": [11, 11, 11, 10.0]})
-    assert not three_day.find_breakdowns(c2).iloc[-1]  # closing at the prior low is not a breakdown
+    # i=3: Close 8.5 < min Close 9 and Low 7.5 < min Low 8 -> breakdown
+    # i=4: Close 8.4 < 8.5 but Low 7.6 > 7.5 -> no
+    # i=5: Low 6 < 7.5 but Close 9 > 8.4 -> no
+    assert three_day.find_breakdowns(c).tolist() == [False, False, False, True, False, False]
+    c2 = pd.DataFrame({"Low": [10, 10, 10, 9], "Close": [11, 11, 11, 11.0]})
+    assert not three_day.find_breakdowns(c2).iloc[-1]  # closing at the prior low close is not a breakdown
 
 
 def test_first_signals_one_per_up_move():
@@ -75,10 +77,12 @@ def test_first_signals_one_per_up_move():
 
 
 def test_find_signals_is_strict():
-    c = pd.DataFrame({"High": [10, 10, 10, 10.5], "Close": [9, 9, 9, 10.0]})
-    assert not three_day.find_signals(c).iloc[-1]  # closing at the prior high is not a breakout
-    c.loc[3, "Close"] = 10.01
+    c = pd.DataFrame({"High": [10, 10, 10, 10.0], "Close": [9, 9, 9, 9.5]})
+    assert not three_day.find_signals(c).iloc[-1]  # High equal to the prior high is not a breakout
+    c.loc[3, "High"] = 10.01
     assert three_day.find_signals(c).iloc[-1]
+    c.loc[3, "Close"] = 9.0
+    assert not three_day.find_signals(c).iloc[-1]  # Close equal to the prior high close is not either
 
 
 def test_wilder_rsi_range_and_extremes():

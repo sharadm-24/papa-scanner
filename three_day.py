@@ -2,10 +2,11 @@
 
 Daily bars are grouped into non-overlapping 3-trading-day candles, counted back so
 the newest candle ends on the latest trading day. A candle is a breakout when it
-CLOSES above both the highest High and the highest Close of the previous 3 candles.
+closes above the highest Close of the previous 3 candles AND its High is above their
+highest High.
 Only the FIRST breakout of an up-move is a signal: after a signal, later breakouts are
-repeats until a breakdown (a candle closing below the lowest Low and lowest Close of the
-previous 3 candles) shows the trend turned down; the next breakout after that is new.
+repeats until a breakdown (a candle closing below the lowest Close of the previous 3
+candles with its Low below their lowest Low) shows the trend turned down; the next breakout after that is new.
 
 Each breakout also carries RSI(14, Wilder, on 3-day closes) and the NSE F&O lot
 size, so the page can filter on "RSI crosses above 58", "RSI is above 58" and
@@ -188,17 +189,17 @@ def three_day_candles(df: pd.DataFrame) -> pd.DataFrame | None:
 
 
 def find_signals(c: pd.DataFrame) -> pd.Series:
-    """Boolean Series: candle i closes above max High and max Close of candles i-3..i-1."""
+    """Boolean Series: candle i's Close > max Close and High > max High of candles i-3..i-1."""
     prev_high = c["High"].shift(1).rolling(3).max()
     prev_close = c["Close"].shift(1).rolling(3).max()
-    return (c["Close"] > prev_high) & (c["Close"] > prev_close)
+    return (c["Close"] > prev_close) & (c["High"] > prev_high)
 
 
 def find_breakdowns(c: pd.DataFrame) -> pd.Series:
-    """Boolean Series: candle i closes below min Low and min Close of candles i-3..i-1."""
+    """Boolean Series: candle i's Close < min Close and Low < min Low of candles i-3..i-1."""
     prev_low = c["Low"].shift(1).rolling(3).min()
     prev_close = c["Close"].shift(1).rolling(3).min()
-    return (c["Close"] < prev_low) & (c["Close"] < prev_close)
+    return (c["Close"] < prev_close) & (c["Low"] < prev_low)
 
 
 def first_signals(brk: pd.Series, bdn: pd.Series) -> pd.Series:
@@ -260,7 +261,7 @@ def scan(universe: str = "nifty50", years: int = 3) -> dict:
             found = True
             entry, sl = float(c.loc[i, "Close"]), float(c.loc[i, "Low"])
             risk = entry - sl
-            level = max(c["High"].iloc[i - 3:i].max(), c["Close"].iloc[i - 3:i].max())
+            level = c["Close"].iloc[i - 3:i].max()  # breakout % = close vs highest prior close
             rp, rn = c.loc[i - 1, "rsi"], c.loc[i, "rsi"]
             has_rsi = pd.notna(rp) and pd.notna(rn)
             rows.append({

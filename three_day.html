@@ -124,7 +124,7 @@
     <div class="max-w-7xl mx-auto px-4 md:px-8 pt-8 pb-12">
         <header class="text-center mb-8">
             <h1 class="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-400 to-cyan-400 mb-1">3-Day Breakout</h1>
-            <p class="text-gray-500 text-sm">3-day candles · first close above the highest High and Close of the previous 3 candles after a breakdown · RSI(14) &amp; F&amp;O filters</p>
+            <p class="text-gray-500 text-sm">3-day candles · first candle whose Close and High beat the previous 3 candles' highest Close and High · RSI(14) &amp; F&amp;O filters</p>
         </header>
 
         <div id="error-banner" class="mb-6 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-rose-200 text-sm" role="alert"></div>
@@ -198,7 +198,7 @@
             <p class="text-xs text-gray-500 leading-relaxed">
                 3-day candles are blocks of 3 trading days counted back from the latest trading day, so a signal can change as new days arrive.
                 Only the first breakout of an up-move is shown (blue ▼). Later breakouts in the same move are repeats and are hidden until a breakdown
-                (a candle closing below the lowest Low and Close of the previous 3 candles, red ▲) shows the trend turned down.
+                (a candle whose Close and Low fall below the previous 3 candles' lowest Close and Low, red ▲) shows the trend turned down.
                 RSI is Wilder's RSI(14) on 3-day closes. Reference plan only: entry = signal close, stop-loss = signal candle low, target = 1:2. Not investment advice.
             </p>
         </div>

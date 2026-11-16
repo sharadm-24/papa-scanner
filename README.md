@@ -38,13 +38,14 @@ filters on "RSI crosses above 58" / "RSI is above 58", signal within the last 1�
 SL (signal candle low) and a 1:2 target. Results are cached in memory for 15 minutes
 (`THREE_DAY_TTL_SEC`); tick "Force fresh data" to rescan.
 
-Universes: Nifty 50, Nifty 500, and All NSE (every EQ/BE equity in the cash market, ~2,600
-symbols from NSE's `EQUITY_L.csv`, downloaded from Yahoo in chunks of 250, backing off
-when Yahoo rate-limits). During market hours
+Universes: Nifty 50 and Nifty 500 on the page. All NSE (`universe=nse_all`: every EQ/BE equity
+in the cash market, ~2,600 symbols from NSE's `EQUITY_L.csv`) is API-only for now, because Yahoo
+rate-limits a full pull at roughly 1,500–1,850 symbols; it downloads in chunks of 250 and stops
+with `rate_limited: true` when Yahoo blocks. During market hours
 the latest candle includes today's intraday bar (marked LIVE on the page; cache 5 minutes,
 `THREE_DAY_LIVE_TTL_SEC`), so it can change until the 3:30 PM close.
 
-A Nifty 500 scan pulls ~500 symbols from Yahoo (about 20–60 s), All NSE takes 1–3 minutes. Run it locally with
+A Nifty 500 scan pulls ~500 symbols from Yahoo (about 20–60 s). Run it locally with
 `python app.py` and open http://localhost:8000/three_day, or without the web app:
 
 ```bash

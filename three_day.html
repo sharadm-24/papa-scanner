@@ -137,7 +137,7 @@
                     <select id="universe-select" class="w-full rounded-xl px-4 py-3 text-sm">
                         <option value="nifty50">Nifty 50</option>
                         <option value="nifty500">Nifty 500</option>
-                        <option value="nse_all">All NSE (cash market)</option>
+                        <!-- All NSE (nse_all) is hidden for now: Yahoo rate-limits a ~2,600-stock pull. -->
                     </select>
                 </div>
                 <button id="scan-btn" class="btn-primary w-full md:w-48 py-3 rounded-xl font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 h-[46px]">
@@ -148,7 +148,7 @@
                     <input type="checkbox" id="refresh-on" class="accent-cyan-400"> Force fresh data
                 </label>
             </div>
-            <p id="scan-hint" class="text-center text-gray-500 text-xs mt-4">Nifty 50 takes a few seconds. Nifty 500 pulls ~500 symbols from Yahoo (about 20–60 seconds); All NSE pulls ~2,600 (1–3 minutes, use the local app). Results are cached for 15 minutes, 5 while the market is open.</p>
+            <p id="scan-hint" class="text-center text-gray-500 text-xs mt-4">Nifty 50 takes a few seconds. Nifty 500 pulls ~500 symbols from Yahoo (about 20–60 seconds). Results are cached for 15 minutes, 5 while the market is open.</p>
         </div>
 
         <div id="empty-state" class="text-center text-gray-600 uppercase tracking-[0.3em] text-xs py-16">Run a scan to find breakouts</div>

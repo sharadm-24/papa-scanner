@@ -212,6 +212,34 @@ def test_load_universe_nse_all_keeps_cash_series(monkeypatch):
         three_day._list_cache.pop("universe:nse_all", None)
 
 
+def test_load_universe_fno_drops_index_rows(monkeypatch):
+    sample = pd.DataFrame({
+        "UNDERLYING": ["NIFTY 50", "NIFTY BANK", "Derivatives on Individual Securities"]
+                      + [f"STOCK {i} LTD" for i in range(60)],
+        "SYMBOL": ["NIFTY", "BANKNIFTY", "Symbol"] + [f"S{i}" for i in range(60)],
+        "NOV-26": ["65", "30", "NOV-26"] + ["100"] * 60,
+    })
+    monkeypatch.setattr(three_day, "YF_FIXTURE_MODE", False)
+    monkeypatch.setattr(three_day, "_fetch_csv", lambda url: sample)
+    three_day._list_cache.pop("universe:fno", None)
+    try:
+        u = three_day.load_universe("fno")
+        assert len(u) == 60
+        assert u["S0.NS"] == "STOCK 0 LTD"
+        assert "NIFTY.NS" not in u and "BANKNIFTY.NS" not in u and "Symbol.NS" not in u
+    finally:
+        three_day._list_cache.pop("universe:fno", None)
+
+
+async def test_three_day_data_fno_universe(client):
+    r = await client.get("/three_day_data", params={"universe": "fno", "refresh": "true"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["universe"] == "fno"
+    assert body["symbols"] == 3
+    assert all(row["fno"] for row in body["rows"])
+
+
 def test_fetch_daily_downloads_in_chunks(monkeypatch):
     calls = []
     good = daily(range(100, 130))

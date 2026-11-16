@@ -38,7 +38,8 @@ filters on "RSI crosses above 58" / "RSI is above 58", signal within the last 1â
 SL (signal candle low) and a 1:2 target. Results are cached in memory for 15 minutes
 (`THREE_DAY_TTL_SEC`); tick "Force fresh data" to rescan.
 
-Universes: Nifty 50 and Nifty 500 on the page. All NSE (`universe=nse_all`: every EQ/BE equity
+Universes: Nifty 50, Nifty 500 and F&O stocks (every stock with futures, ~218 symbols from NSE's
+`fo_mktlots.csv`; index futures are left out) on the page. All NSE (`universe=nse_all`: every EQ/BE equity
 in the cash market, ~2,600 symbols from NSE's `EQUITY_L.csv`) is API-only for now, because Yahoo
 rate-limits a full pull at roughly 1,500â€“1,850 symbols; it downloads in chunks of 250 and stops
 with `rate_limited: true` when Yahoo blocks. During market hours

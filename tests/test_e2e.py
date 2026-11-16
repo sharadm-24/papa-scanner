@@ -190,6 +190,21 @@ def test_e2e_3day_01_scan_and_filters(page: Page):
     expect(body).not_to_contain_text("RELIANCE")
 
 
+def test_e2e_3day_03_fno_universe(page: Page):
+    page.goto(BASE_URL + "/three_day")
+    page.select_option("#universe-select", "fno")
+    with page.expect_request(lambda r: "universe=fno" in r.url):
+        page.click("#scan-btn")
+    expect(page.locator("#results-section")).to_be_visible(timeout=60000)
+    expect(page.locator("#scan-meta")).to_contain_text("F&O stocks")
+    page.click("label[for=rsi-on] .knob")
+    page.select_option("#lookback", "5")
+    body = page.locator("#results-body")
+    expect(body).to_contain_text("TCS")
+    expect(body).not_to_contain_text("HDFCBANK")
+    expect(body).not_to_contain_text("ITC")
+
+
 def test_e2e_3day_02_nav_and_home_card(page: Page):
     page.goto(BASE_URL + "/")
     page.locator("a.dash-card[href='/three_day']").click()

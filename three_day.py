@@ -35,6 +35,8 @@ LOOKBACK_MAX = 5  # rows cover first signals on the last N candles; the page fil
 UNIVERSE_URLS = {
     "nifty50": "https://archives.nseindia.com/content/indices/ind_nifty50list.csv",
     "nifty500": "https://archives.nseindia.com/content/indices/ind_nifty500list.csv",
+    # Every stock with futures on NSE (about 215 symbols, from the F&O lot-size list).
+    "fno": "https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv",
     # Every equity in the NSE cash market (about 2,600 symbols).
     "nse_all": "https://archives.nseindia.com/content/equities/EQUITY_L.csv",
 }
@@ -94,9 +96,13 @@ def load_universe(name: str) -> dict[str, str]:
     if name not in UNIVERSE_URLS:
         raise ValueError(f"universe must be one of: {', '.join(UNIVERSE_URLS)}")
     if YF_FIXTURE_MODE:
+        if name == "fno":
+            return {t: n for t, n in FIXTURE_UNIVERSE.items() if t.removesuffix(".NS") in FIXTURE_FNO}
         return dict(FIXTURE_UNIVERSE)
 
     def loader():
+        if name == "fno":
+            return _fno_stocks()
         df = _fetch_csv(UNIVERSE_URLS[name])
         if name == "nse_all":
             df = df[df["SERIES"].astype(str).str.strip().isin(CASH_SERIES)]
@@ -106,6 +112,24 @@ def load_universe(name: str) -> dict[str, str]:
         return {f"{str(r[sym_col]).strip()}.NS": str(r[name_col]).strip() for _, r in df.iterrows()}
 
     return _cached(f"universe:{name}", loader)
+
+
+def _fno_stocks() -> dict[str, str]:
+    """Stock futures from fo_mktlots.csv. Index rows (NIFTY, BANKNIFTY, ...) come before the
+    'Derivatives on Individual Securities' header row and are dropped."""
+    for url in FNO_URLS:
+        try:
+            df = _fetch_csv(url)
+            syms = df["SYMBOL"].astype(str).str.strip()
+            header = syms.index[syms.str.upper() == "SYMBOL"]
+            if len(header):
+                df, syms = df.loc[header[0] + 1:], syms.loc[header[0] + 1:]
+            out = {f"{s}.NS": str(n).strip() for s, n in zip(syms, df["UNDERLYING"]) if s and s != "nan"}
+            if len(out) > 50:
+                return out
+        except Exception as e:  # try the next URL
+            log.warning("F&O stock list fetch failed (%s): %s", url, e)
+    return {}
 
 
 def load_fno() -> dict[str, int]:

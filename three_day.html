@@ -137,6 +137,7 @@
                     <select id="universe-select" class="w-full rounded-xl px-4 py-3 text-sm">
                         <option value="nifty50">Nifty 50</option>
                         <option value="nifty500">Nifty 500</option>
+                        <option value="fno">F&amp;O stocks (all with futures)</option>
                         <!-- All NSE (nse_all) is hidden for now: Yahoo rate-limits a ~2,600-stock pull. -->
                     </select>
                 </div>
@@ -268,7 +269,7 @@
                 $('stat-symbols').textContent = `${data.with_data} / ${data.symbols}`;
                 $('rsi-level').textContent = data.rsi_level;
                 const when = data.cached ? `cached from ${new Date(data.scanned_at).toLocaleTimeString()}` : `scanned in ${data.elapsed_sec}s`;
-                $('scan-meta').textContent = `${({nifty50: 'Nifty 50', nifty500: 'Nifty 500', nse_all: 'All NSE'})[data.universe] || data.universe} · ${when}` + (data.skipped_stale ? ` · ${data.skipped_stale} skipped (no bar for the latest day)` : '') + (data.fno_loaded ? '' : ' · F&O list unavailable');
+                $('scan-meta').textContent = `${({nifty50: 'Nifty 50', nifty500: 'Nifty 500', fno: 'F&O stocks', nse_all: 'All NSE'})[data.universe] || data.universe} · ${when}` + (data.skipped_stale ? ` · ${data.skipped_stale} skipped (no bar for the latest day)` : '') + (data.fno_loaded ? '' : ' · F&O list unavailable');
                 render();
             } catch (e) {
                 showError('Scan failed: ' + e.message);

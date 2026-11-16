@@ -34,11 +34,17 @@ High. Only the first breakout of an up-move counts: later
 breakouts are repeats until a breakdown (Close below the previous 3 candles' lowest Close and
 Low below their lowest Low) shows the trend turned down. Each row carries RSI(14, Wilder, on 3-day closes) and the NSE F&O lot size; the page
 filters on "RSI crosses above 58" / "RSI is above 58", signal within the last 1–5 candles
-(default 2) and F&O only, and shows
+(default 2) and Segment (All / F&O only / Cash only), and shows
 SL (signal candle low) and a 1:2 target. Results are cached in memory for 15 minutes
 (`THREE_DAY_TTL_SEC`); tick "Force fresh data" to rescan.
 
-A Nifty 500 scan pulls ~500 symbols from Yahoo (about 20–60 s). Run it locally with
+Universes: Nifty 50, Nifty 500, and All NSE (every EQ/BE equity in the cash market, ~2,600
+symbols from NSE's `EQUITY_L.csv`, downloaded from Yahoo in chunks of 250, backing off
+when Yahoo rate-limits). During market hours
+the latest candle includes today's intraday bar (marked LIVE on the page; cache 5 minutes,
+`THREE_DAY_LIVE_TTL_SEC`), so it can change until the 3:30 PM close.
+
+A Nifty 500 scan pulls ~500 symbols from Yahoo (about 20–60 s), All NSE takes 1–3 minutes. Run it locally with
 `python app.py` and open http://localhost:8000/three_day, or without the web app:
 
 ```bash

@@ -150,6 +150,8 @@ def test_e2e_3day_01_scan_and_filters(page: Page):
     expect(rows).to_have_count(1)
     expect(rows.first).to_contain_text("TCS")
     expect(page.locator("#stat-total")).to_have_text("4")
+    expect(page.locator("#stat-candle")).to_have_text("11 Nov – 13 Nov")
+    expect(page.locator("#live-tag")).to_be_hidden()  # fixture data is not today's
     expect(page.locator("#chart .main-svg").first).to_be_visible()
 
     page.select_option("#rsi-mode", "above")
@@ -160,7 +162,7 @@ def test_e2e_3day_01_scan_and_filters(page: Page):
     expect(rows).to_have_count(3)
     expect(page.locator("#results-body")).not_to_contain_text("INFY")  # repeat breakout, hidden
     expect(page.locator("#rsi-mode")).to_be_disabled()
-    page.check("#fno-on")
+    page.select_option("#segment", "fno")
     expect(rows).to_have_count(2)
     expect(page.locator("#results-body")).not_to_contain_text("HDFCBANK")
     page.select_option("#lookback", "1")
@@ -171,12 +173,21 @@ def test_e2e_3day_01_scan_and_filters(page: Page):
 
     # Lookback: ITC's first signal is 3 candles ago, so it needs "last 4 candles" or more.
     page.fill("#filter-symbol", "")
-    page.uncheck("#fno-on")
+    page.select_option("#segment", "all")
     page.select_option("#lookback", "3")
     expect(page.locator("#results-body")).not_to_contain_text("ITC")
     page.select_option("#lookback", "4")
     expect(rows).to_have_count(4)
     expect(page.locator("#results-body")).to_contain_text("3 candles ago")
+
+    # Segment = cash: only stocks without F&O (HDFCBANK, ITC).
+    page.select_option("#segment", "cash")
+    expect(rows).to_have_count(2)
+    body = page.locator("#results-body")
+    expect(body).to_contain_text("HDFCBANK")
+    expect(body).to_contain_text("ITC")
+    expect(body).not_to_contain_text("TCS")
+    expect(body).not_to_contain_text("RELIANCE")
 
 
 def test_e2e_3day_02_nav_and_home_card(page: Page):

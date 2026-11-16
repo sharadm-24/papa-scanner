@@ -755,6 +755,8 @@ async def get_all_indices_data(
         return {"error": str(e)}
 
 THREE_DAY_TTL_SEC = int(os.environ.get("THREE_DAY_TTL_SEC", "900"))
+# While NSE is open the latest candle moves with intraday prices, so refresh sooner.
+THREE_DAY_LIVE_TTL_SEC = int(os.environ.get("THREE_DAY_LIVE_TTL_SEC", "300"))
 _three_day_cache: dict = {}
 _three_day_lock = asyncio.Lock()
 
@@ -771,7 +773,8 @@ async def get_three_day_data(
         )
     def cached():
         hit = _three_day_cache.get(universe)
-        if hit and (datetime.now() - hit["at"]).total_seconds() < THREE_DAY_TTL_SEC:
+        ttl = THREE_DAY_LIVE_TTL_SEC if hit and hit["data"].get("live") else THREE_DAY_TTL_SEC
+        if hit and (datetime.now() - hit["at"]).total_seconds() < ttl:
             return {**hit["data"], "cached": True, "scanned_at": hit["at"].isoformat(timespec="seconds")}
         return None
 
@@ -788,7 +791,7 @@ async def get_three_day_data(
             return JSONResponse({"error": f"{type(e).__name__}: {e}"}, status_code=502)
         data["elapsed_sec"] = round((datetime.now() - now).total_seconds(), 1)
         # Don't keep a rate-limited partial scan (or one without the F&O list) for the full TTL.
-        if data["fno_loaded"] and data["with_data"] >= 0.9 * data["symbols"]:
+        if data["fno_loaded"] and not data.get("rate_limited") and data["with_data"] >= 0.9 * data["symbols"]:
             _three_day_cache[universe] = {"at": now, "data": data}
         return {**data, "cached": False, "scanned_at": now.isoformat(timespec="seconds")}
 

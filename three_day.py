@@ -35,7 +35,16 @@ LOOKBACK_MAX = 5  # rows cover first signals on the last N candles; the page fil
 UNIVERSE_URLS = {
     "nifty50": "https://archives.nseindia.com/content/indices/ind_nifty50list.csv",
     "nifty500": "https://archives.nseindia.com/content/indices/ind_nifty500list.csv",
+    # Every equity in the NSE cash market (about 2,600 symbols).
+    "nse_all": "https://archives.nseindia.com/content/equities/EQUITY_L.csv",
 }
+CASH_SERIES = {"EQ", "BE"}  # rolling settlement and trade-to-trade; skips SME/other series
+CHUNK_SIZE = 250  # Yahoo rate-limits very large single downloads
+CHUNK_PAUSE_SEC = 2
+RATE_LIMIT_BACKOFF_SEC = (15, 30, 60)
+RATE_LIMIT_MIN_MISSING = 10
+IST = "Asia/Kolkata"
+MARKET_CLOSE = (15, 30)
 FNO_URLS = [
     "https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv",
     "https://archives.nseindia.com/content/fo/fo_mktlots.csv",
@@ -81,7 +90,7 @@ def _cached(key: str, loader):
 
 
 def load_universe(name: str) -> dict[str, str]:
-    """{'RELIANCE.NS': 'Reliance Industries Ltd.', ...} from the NSE index list."""
+    """{'RELIANCE.NS': 'Reliance Industries Ltd.', ...} from the NSE index or equity list."""
     if name not in UNIVERSE_URLS:
         raise ValueError(f"universe must be one of: {', '.join(UNIVERSE_URLS)}")
     if YF_FIXTURE_MODE:
@@ -89,7 +98,12 @@ def load_universe(name: str) -> dict[str, str]:
 
     def loader():
         df = _fetch_csv(UNIVERSE_URLS[name])
-        return {f"{str(r['Symbol']).strip()}.NS": str(r["Company Name"]).strip() for _, r in df.iterrows()}
+        if name == "nse_all":
+            df = df[df["SERIES"].astype(str).str.strip().isin(CASH_SERIES)]
+            sym_col, name_col = "SYMBOL", "NAME OF COMPANY"
+        else:
+            sym_col, name_col = "Symbol", "Company Name"
+        return {f"{str(r[sym_col]).strip()}.NS": str(r[name_col]).strip() for _, r in df.iterrows()}
 
     return _cached(f"universe:{name}", loader)
 
@@ -141,14 +155,40 @@ def _fixture_frames(tickers: list[str]) -> dict[str, pd.DataFrame]:
     return out
 
 
-def fetch_daily(tickers: list[str], years: int) -> dict[str, pd.DataFrame]:
-    """Daily split-adjusted OHLC per ticker. Yahoo rate-limits bursts, so empties are retried."""
+def fetch_daily(tickers: list[str], years: int) -> tuple[dict[str, pd.DataFrame], bool]:
+    """Daily split-adjusted OHLC per ticker, and whether Yahoo blocked us (rate limit).
+
+    Yahoo rate-limits bursts, so empties are retried. If a chunk is still mostly empty after
+    the full backoff, Yahoo is blocking this machine: stop and return what we have.
+    """
     if YF_FIXTURE_MODE:
-        return _fixture_frames(tickers)
+        return _fixture_frames(tickers), False
 
     kwargs = dict(period=f"{years}y", interval="1d", auto_adjust=True,
                   group_by="ticker", progress=False, timeout=30)
-    frames = _split_download(yf_download(tickers, threads=True, **kwargs), tickers)
+    frames = {}
+    for k in range(0, len(tickers), CHUNK_SIZE):
+        chunk = tickers[k:k + CHUNK_SIZE]
+        if k:
+            time.sleep(CHUNK_PAUSE_SEC)
+        # A chunk that comes back mostly empty means Yahoo is rate-limiting us. A few symbols
+        # Yahoo doesn't carry (or a tiny last chunk) must not trigger this, hence the floor.
+        for wait in (0, *RATE_LIMIT_BACKOFF_SEC):
+            todo = [t for t in chunk if t not in frames]
+            if wait:
+                log.warning("Rate-limited: %d of %d missing, waiting %ds", len(todo), len(chunk), wait)
+                time.sleep(wait)
+            try:
+                frames.update(_split_download(yf_download(todo, threads=True, **kwargs), todo))
+            except Exception as e:  # the retry loop below picks these up
+                log.warning("Chunk download failed (%d symbols): %s", len(todo), e)
+            missing = sum(t not in frames and t not in DELISTED for t in chunk)
+            if missing <= max(RATE_LIMIT_MIN_MISSING, len(chunk) / 2):
+                break
+        else:
+            log.warning("Yahoo is still blocking after backoff; stopping with %d of %d symbols",
+                        len(frames), len(tickers))
+            return frames, True
     # Short pauses (12 s worst case) so a symbol Yahoo never serves can't stall the request;
     # stop as soon as a retry recovers nothing.
     for attempt in range(3):
@@ -165,7 +205,7 @@ def fetch_daily(tickers: list[str], years: int) -> dict[str, pd.DataFrame]:
         if not more:
             break
         frames.update(more)
-    return frames
+    return frames, False
 
 
 def three_day_candles(df: pd.DataFrame) -> pd.DataFrame | None:
@@ -228,12 +268,20 @@ def _num(v, nd=2):
     return None if v is None or pd.isna(v) else round(float(v), nd)
 
 
+def is_live(asof: str | None, now: pd.Timestamp | None = None) -> bool:
+    """True when the latest bar is today's and NSE hasn't closed yet (intraday prices)."""
+    now = now if now is not None else pd.Timestamp.now(tz=IST)
+    if not asof or f"{now:%Y-%m-%d}" != asof:
+        return False
+    return (now.hour, now.minute) < MARKET_CLOSE
+
+
 def scan(universe: str = "nifty50", years: int = 3) -> dict:
     """Run the scan. Returns JSON-ready rows (first signals on the last LOOKBACK_MAX candles) and charts."""
     names = load_universe(universe)
     tickers = list(names)
     fno = load_fno()
-    frames = fetch_daily(tickers, years)
+    frames, rate_limited = fetch_daily(tickers, years)
 
     candles = {}
     for t, df in frames.items():
@@ -243,13 +291,18 @@ def scan(universe: str = "nifty50", years: int = 3) -> dict:
         if c is not None and len(c) >= 6:
             candles[t] = c
     if not candles:
-        return {"universe": universe, "asof": None, "symbols": len(tickers), "with_data": 0,
-                "fno_loaded": bool(fno), "rsi_level": RSI_LEVEL, "rows": [], "charts": {}}
+        return {"universe": universe, "asof": None, "symbols": len(tickers), "with_data": len(frames),
+                "fno_loaded": bool(fno), "rsi_level": RSI_LEVEL, "latest_candle": None, "live": False,
+                "skipped_stale": 0, "rate_limited": rate_limited, "rows": [], "charts": {}}
 
     latest = max(c["end"].iloc[-1] for c in candles.values())
-    rows, charts = [], {}
+    # Most stocks share the market calendar; one with a missing day would shift its own start.
+    latest_start = pd.Series([c["start"].iloc[-1] for c in candles.values()
+                              if c["end"].iloc[-1] == latest]).mode().iloc[0]
+    rows, charts, stale = [], {}, 0
     for t, c in candles.items():
-        if c["end"].iloc[-1] != latest:  # stale / suspended symbol
+        if c["end"].iloc[-1] != latest:  # no bar for the latest day (suspended / not traded)
+            stale += 1
             continue
         c["rsi"] = wilder_rsi(c["Close"])
         bdn = find_breakdowns(c)
@@ -299,9 +352,14 @@ def scan(universe: str = "nifty50", years: int = 3) -> dict:
             }
 
     rows.sort(key=lambda r: (r["bars_ago"], -r["breakout_pct"]))
+    asof = f"{pd.Timestamp(latest):%Y-%m-%d}"
     return {
         "universe": universe,
-        "asof": f"{pd.Timestamp(latest):%Y-%m-%d}",
+        "asof": asof,
+        "latest_candle": {"start": f"{pd.Timestamp(latest_start):%Y-%m-%d}", "end": asof},
+        "live": is_live(asof),
+        "skipped_stale": stale,
+        "rate_limited": rate_limited,
         "symbols": len(tickers),
         "with_data": len(frames),
         "fno_loaded": bool(fno),

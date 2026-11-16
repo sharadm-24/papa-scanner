@@ -137,6 +137,7 @@
                     <select id="universe-select" class="w-full rounded-xl px-4 py-3 text-sm">
                         <option value="nifty50">Nifty 50</option>
                         <option value="nifty500">Nifty 500</option>
+                        <option value="nse_all">All NSE (cash market)</option>
                     </select>
                 </div>
                 <button id="scan-btn" class="btn-primary w-full md:w-48 py-3 rounded-xl font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 h-[46px]">
@@ -147,7 +148,7 @@
                     <input type="checkbox" id="refresh-on" class="accent-cyan-400"> Force fresh data
                 </label>
             </div>
-            <p id="scan-hint" class="text-center text-gray-500 text-xs mt-4">Nifty 50 takes a few seconds. Nifty 500 pulls ~500 symbols from Yahoo (about 20–60 seconds); results are cached for 15 minutes. If the hosted site times out, run it on the local app.</p>
+            <p id="scan-hint" class="text-center text-gray-500 text-xs mt-4">Nifty 50 takes a few seconds. Nifty 500 pulls ~500 symbols from Yahoo (about 20–60 seconds); All NSE pulls ~2,600 (1–3 minutes, use the local app). Results are cached for 15 minutes, 5 while the market is open.</p>
         </div>
 
         <div id="empty-state" class="text-center text-gray-600 uppercase tracking-[0.3em] text-xs py-16">Run a scan to find breakouts</div>
@@ -173,7 +174,13 @@
                         <option value="5">5 candles</option>
                     </select>
                 </label>
-                <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="fno-on" class="accent-cyan-400"> F&amp;O stocks only</label>
+                <label class="flex items-center gap-2 text-sm">Segment
+                    <select id="segment" class="rounded-lg px-2 py-1 text-sm" aria-label="Segment">
+                        <option value="all" selected>All stocks</option>
+                        <option value="fno">F&amp;O only</option>
+                        <option value="cash">Cash only (not in F&amp;O)</option>
+                    </select>
+                </label>
                 <input id="filter-symbol" type="search" placeholder="Filter symbol…" class="rounded-lg px-3 py-2 text-sm bg-white/5 border border-white/10 text-white w-40 focus:outline-none focus:border-cyan-400">
                 <button id="export-csv-btn" type="button" class="ml-auto text-xs font-bold uppercase tracking-widest border border-white/15 px-4 py-2 rounded-lg hover:bg-white/5">Export CSV</button>
             </div>
@@ -181,9 +188,11 @@
             <div class="flex flex-wrap gap-3 mb-6 text-sm">
                 <div class="stat-pill"><div class="text-[10px] uppercase tracking-widest text-gray-500">Showing</div><div id="stat-shown" class="font-bold text-white text-lg">0</div></div>
                 <div class="stat-pill"><div class="text-[10px] uppercase tracking-widest text-gray-500">Signals, last 5 candles</div><div id="stat-total" class="font-bold text-white text-lg">0</div></div>
+                <div class="stat-pill"><div class="text-[10px] uppercase tracking-widest text-gray-500">Latest candle</div><div class="font-bold text-white text-lg"><span id="stat-candle">–</span> <span id="live-tag" class="hidden align-middle text-[10px] font-black tracking-widest text-emerald-300 border border-emerald-400/40 bg-emerald-400/10 rounded px-1.5 py-0.5">LIVE</span></div></div>
                 <div class="stat-pill"><div class="text-[10px] uppercase tracking-widest text-gray-500">Data as of</div><div id="stat-asof" class="font-bold text-white text-lg">–</div></div>
                 <div class="stat-pill"><div class="text-[10px] uppercase tracking-widest text-gray-500">Symbols scanned</div><div id="stat-symbols" class="font-bold text-white text-lg">–</div></div>
                 <div id="scan-meta" class="self-center text-xs text-gray-500"></div>
+                <p id="live-note" class="hidden w-full text-xs text-emerald-300/80">Today's candle uses intraday prices until the 3:30 PM close, so signals on it can change.</p>
             </div>
 
             <div class="glass p-4 mb-6"><div id="chart"></div></div>
@@ -246,10 +255,20 @@
                 $('results-section').classList.remove('hidden');
                 $('stat-total').textContent = data.rows.length;
                 $('stat-asof').textContent = data.asof ? fmtDate(data.asof) : '–';
+                $('stat-candle').textContent = data.latest_candle ? `${fmtShort(data.latest_candle.start)} – ${fmtShort(data.latest_candle.end)}` : '–';
+                $('live-tag').classList.toggle('hidden', !data.live);
+                // Without NSE's F&O list every stock looks like "cash"; don't offer a split we can't make.
+                ['fno', 'cash'].forEach(v => { $('segment').querySelector(`option[value="${v}"]`).disabled = !data.fno_loaded; });
+                if (!data.fno_loaded) $('segment').value = 'all';
+                if (data.rate_limited) {
+                    showError(`Yahoo Finance is limiting requests from this machine, so only ${data.with_data} of ${data.symbols} stocks loaded. ` +
+                              'Results below are incomplete. Wait 15–60 minutes and scan again (Nifty 50 needs far fewer requests).');
+                }
+                $('live-note').classList.toggle('hidden', !data.live);
                 $('stat-symbols').textContent = `${data.with_data} / ${data.symbols}`;
                 $('rsi-level').textContent = data.rsi_level;
                 const when = data.cached ? `cached from ${new Date(data.scanned_at).toLocaleTimeString()}` : `scanned in ${data.elapsed_sec}s`;
-                $('scan-meta').textContent = `${data.universe.toUpperCase()} · ${when}` + (data.fno_loaded ? '' : ' · F&O list unavailable');
+                $('scan-meta').textContent = `${({nifty50: 'Nifty 50', nifty500: 'Nifty 500', nse_all: 'All NSE'})[data.universe] || data.universe} · ${when}` + (data.skipped_stale ? ` · ${data.skipped_stale} skipped (no bar for the latest day)` : '') + (data.fno_loaded ? '' : ' · F&O list unavailable');
                 render();
             } catch (e) {
                 showError('Scan failed: ' + e.message);
@@ -263,13 +282,13 @@
         function render() {
             if (!scan) return;
             const on = $('rsi-on').checked, mode = $('rsi-mode').value;
-            const lookback = Number($('lookback').value), fno = $('fno-on').checked;
+            const lookback = Number($('lookback').value), segment = $('segment').value;
             const q = $('filter-symbol').value.trim().toUpperCase();
             $('rsi-mode').disabled = !on;
             $('rsi-state').textContent = on ? 'ON' : 'OFF';
             shown = scan.rows.filter(r =>
                 r.bars_ago < lookback &&
-                (!fno || r.fno) &&
+                (segment === 'all' || (segment === 'fno') === r.fno) &&
                 (!on || (mode === 'cross' ? r.rsi_cross : r.rsi_above)) &&
                 (!q || r.symbol.includes(q)));
             $('stat-shown').textContent = shown.length;
@@ -338,7 +357,7 @@
         }
 
         $('scan-btn').onclick = runScan;
-        ['rsi-on', 'rsi-mode', 'lookback', 'fno-on'].forEach(id => $(id).onchange = render);
+        ['rsi-on', 'rsi-mode', 'lookback', 'segment'].forEach(id => $(id).onchange = render);
         $('filter-symbol').oninput = render;
         $('export-csv-btn').onclick = exportRows;
     </script>

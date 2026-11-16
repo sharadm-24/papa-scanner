@@ -178,7 +178,8 @@ def test_fetch_daily_retry_stops_when_nothing_recovered(monkeypatch):
     monkeypatch.setattr(three_day, "YF_FIXTURE_MODE", False)
     monkeypatch.setattr(three_day, "yf_download", fake_download)
     monkeypatch.setattr(three_day.time, "sleep", sleeps.append)
-    frames = three_day.fetch_daily(["A.NS", "B.NS", "NEWCO.NS"], 3)
+    frames, blocked = three_day.fetch_daily(["A.NS", "B.NS", "NEWCO.NS"], 3)
+    assert not blocked
     assert set(frames) == {"A.NS", "B.NS"}
     assert len(calls) == 2 and sum(sleeps) <= 2  # one retry, then give up
 
@@ -194,3 +195,146 @@ async def test_three_day_data_skips_caching_partial_scan(client, monkeypatch):
     r = await client.get("/three_day_data", params={"universe": "nifty500"})
     assert r.json()["with_data"] == 40
     assert "nifty500" not in app_module._three_day_cache
+
+
+def test_load_universe_nse_all_keeps_cash_series(monkeypatch):
+    sample = pd.DataFrame({
+        "SYMBOL": ["AAA", "BBB", "CCC", "DDD"],
+        "NAME OF COMPANY": ["Aaa Ltd", "Bbb Ltd", "Ccc Ltd", "Ddd Ltd"],
+        "SERIES": ["EQ", "BE", "SM", "BZ"],
+    })
+    monkeypatch.setattr(three_day, "YF_FIXTURE_MODE", False)
+    monkeypatch.setattr(three_day, "_fetch_csv", lambda url: sample)
+    three_day._list_cache.pop("universe:nse_all", None)
+    try:
+        assert three_day.load_universe("nse_all") == {"AAA.NS": "Aaa Ltd", "BBB.NS": "Bbb Ltd"}
+    finally:
+        three_day._list_cache.pop("universe:nse_all", None)
+
+
+def test_fetch_daily_downloads_in_chunks(monkeypatch):
+    calls = []
+    good = daily(range(100, 130))
+
+    def fake_download(tickers, **kwargs):
+        calls.append(len(tickers))
+        return pd.concat({t: good for t in tickers}, axis=1)
+
+    monkeypatch.setattr(three_day, "YF_FIXTURE_MODE", False)
+    monkeypatch.setattr(three_day, "yf_download", fake_download)
+    monkeypatch.setattr(three_day.time, "sleep", lambda s: None)
+    tickers = [f"S{i}.NS" for i in range(900)]
+    frames, blocked = three_day.fetch_daily(tickers, 3)
+    assert not blocked
+    assert calls == [250, 250, 250, 150]
+    assert len(frames) == 900
+
+
+def test_fetch_daily_backs_off_when_rate_limited(monkeypatch):
+    calls, sleeps = [], []
+    good = daily(range(100, 130))
+
+    def fake_download(tickers, **kwargs):
+        calls.append(len(tickers))
+        if len(calls) == 1:  # first attempt: Yahoo returns nothing (rate limit)
+            return pd.DataFrame()
+        return pd.concat({t: good for t in tickers}, axis=1)
+
+    monkeypatch.setattr(three_day, "YF_FIXTURE_MODE", False)
+    monkeypatch.setattr(three_day, "yf_download", fake_download)
+    monkeypatch.setattr(three_day.time, "sleep", sleeps.append)
+    frames, blocked = three_day.fetch_daily([f"S{i}.NS" for i in range(30)], 3)
+    assert not blocked
+    assert len(frames) == 30
+    assert calls == [30, 30] and sleeps == [three_day.RATE_LIMIT_BACKOFF_SEC[0]]
+
+
+@pytest.mark.parametrize("now, expected", [
+    ("2026-11-16 10:40", True),    # market open, today's bar is intraday
+    ("2026-11-16 15:29", True),
+    ("2026-11-16 15:30", False),   # closed: today's candle is final
+    ("2026-11-17 10:00", False),   # latest bar is from an earlier day
+])
+def test_is_live(now, expected):
+    ts = pd.Timestamp(now, tz=three_day.IST)
+    assert three_day.is_live("2026-11-16", now=ts) is expected
+    assert three_day.is_live(None, now=ts) is False
+
+
+def test_scan_reports_latest_candle():
+    result = three_day.scan("nse_all")
+    assert result["latest_candle"] == {"start": "2026-11-11", "end": result["asof"]}
+    assert result["live"] is False
+    assert result["skipped_stale"] == 0
+
+
+@pytest.mark.asyncio
+async def test_three_day_data_nse_all(client):
+    r = await client.get("/three_day_data", params={"universe": "nse_all", "refresh": "true"})
+    assert r.status_code == 200
+    assert r.json()["universe"] == "nse_all"
+
+
+def test_fetch_daily_stops_when_yahoo_keeps_blocking(monkeypatch):
+    # First chunk downloads fine, then Yahoo returns nothing: give up after one chunk's
+    # backoff instead of waiting on every remaining chunk.
+    calls, sleeps = [], []
+    good = daily(range(100, 130))
+
+    def fake_download(tickers, **kwargs):
+        calls.append(len(tickers))
+        if len(calls) == 1:
+            return pd.concat({t: good for t in tickers}, axis=1)
+        return pd.DataFrame()
+
+    monkeypatch.setattr(three_day, "YF_FIXTURE_MODE", False)
+    monkeypatch.setattr(three_day, "yf_download", fake_download)
+    monkeypatch.setattr(three_day.time, "sleep", sleeps.append)
+    tickers = [f"S{i}.NS" for i in range(1000)]
+    frames, blocked = three_day.fetch_daily(tickers, 3)
+    assert blocked
+    assert len(frames) == three_day.CHUNK_SIZE
+    assert len(calls) == 1 + 1 + len(three_day.RATE_LIMIT_BACKOFF_SEC)  # chunk 1, chunk 2 + its retries
+    assert sum(sleeps) == three_day.CHUNK_PAUSE_SEC + sum(three_day.RATE_LIMIT_BACKOFF_SEC)
+
+
+@pytest.mark.asyncio
+async def test_three_day_data_rate_limited_is_not_cached(client, monkeypatch):
+    import app as app_module
+
+    blocked = {"universe": "nse_all", "asof": "2026-11-16", "symbols": 2604, "with_data": 6,
+               "fno_loaded": True, "rsi_level": 58, "latest_candle": None, "live": False,
+               "skipped_stale": 0, "rate_limited": True, "rows": [], "charts": {}}
+    monkeypatch.setattr(three_day, "scan", lambda universe: dict(blocked))
+    app_module._three_day_cache.pop("nse_all", None)
+    r = await client.get("/three_day_data", params={"universe": "nse_all"})
+    assert r.json()["rate_limited"] is True
+    assert "nse_all" not in app_module._three_day_cache
+
+
+def test_fetch_daily_small_last_chunk_with_unknown_symbol_is_not_rate_limit(monkeypatch):
+    sleeps = []
+    good = daily(range(100, 130))
+
+    def fake_download(tickers, **kwargs):
+        have = [t for t in tickers if t != "DEAD.NS"]
+        return pd.concat({t: good for t in have}, axis=1) if have else pd.DataFrame()
+
+    monkeypatch.setattr(three_day, "YF_FIXTURE_MODE", False)
+    monkeypatch.setattr(three_day, "yf_download", fake_download)
+    monkeypatch.setattr(three_day.time, "sleep", sleeps.append)
+    tickers = [f"S{i}.NS" for i in range(three_day.CHUNK_SIZE)] + ["DEAD.NS"]
+    frames, blocked = three_day.fetch_daily(tickers, 3)
+    assert not blocked
+    assert len(frames) == three_day.CHUNK_SIZE
+    assert not any(s in three_day.RATE_LIMIT_BACKOFF_SEC for s in sleeps)
+
+
+def test_latest_candle_start_uses_common_calendar(monkeypatch):
+    full = daily(range(100, 160))
+    gap = full.drop(full.index[-2])  # first stock is missing the second-to-last session
+    monkeypatch.setattr(three_day, "load_universe", lambda u: {"A.NS": "A", "B.NS": "B", "C.NS": "C"})
+    monkeypatch.setattr(three_day, "load_fno", lambda: {})
+    monkeypatch.setattr(three_day, "fetch_daily", lambda t, y: ({"A.NS": gap, "B.NS": full, "C.NS": full}, False))
+    result = three_day.scan("nifty50")
+    assert result["latest_candle"]["start"] == f"{full.index[-3]:%Y-%m-%d}"
